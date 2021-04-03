@@ -11,7 +11,6 @@ from skimage import filters, data, exposure
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image, ImageOps 
-import awkward as ak
 
 from dither_kernel import DITHERS, DitherKernel
 from ditherer import Ditherer
@@ -30,10 +29,17 @@ class ImageScore(object):
 
 class ImageCompare(object):
 
-    def __init__(self, d:Ditherer):
+    def __init__(self, d:Ditherer, original_img:str=None, greyscale:str=None):
         self.sigma = 1.5
         self.d = d
 
+        # path to the original image: will be used for sizing information
+        self.original_img = original_img
+
+        # path to a numpy dataset holding greyscale info for pixelated version
+        self.greyscale = greyscale
+
+    # NOTE: Not currently used
     def mse(self, imageA:np.ndarray, imageB:np.ndarray) -> np.float64:
         # the 'Mean Squared Error' between the two images is the
         # sum of the squared difference between the two images;
@@ -59,10 +65,16 @@ class ImageCompare(object):
 
         score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare))
 
-        original_c = exposure.rescale_intensity(original)
-        compare_c = exposure.rescale_intensity(compare)
+        # NOTE: the following increases intensity and then re-blurs to test
+        # The idea is to test well for Atkinson and other "mid-range" dithers
+        # However, rescale_intensity won't work bc most images are already well-exposed here
+        # so it ends up not changing it. We need a method that increases contrast regardless
+        # of existing contrast, and find the right amount to do it
 
-        blurred_c_original = filters.gaussian(original_c, sigma=self.sigma, preserve_range=True)
+        # original_c = exposure.rescale_intensity(original)
+        # compare_c = exposure.rescale_intensity(compare)
+
+#        blurred_c_original = filters.gaussian(original_c, sigma=self.sigma, preserve_range=True)
 #        blurred_c_compare = filters.gaussian(compare_c, sigma=self.sigma, preserve_range=True)
 
         # uncomment to write blurred images to files
@@ -120,10 +132,11 @@ class ImageCompare(object):
         return retDither
 
     def test_itself(self, image:np.ndarray, filename:str):
+        "Test an image against itself, as control"
         self.run_test(image, image, filename, "itself", False)
 
     def test_cutoffs(self, image:np.ndarray, filename:str):
-        'Round images to black or white and compare'
+        'Round images to black or white with no dithering and compare'
         im_pil = Image.fromarray(image)
         im2 = ImageOps.posterize(im_pil, 1)
         # im2.show()
@@ -134,15 +147,9 @@ class ImageCompare(object):
         rnd = self.random_img(image)
         self.run_test(rnd, image, filename, "Random", False)
 
-    # def test_random_dither(self, image:np.ndarray, filename:str)->np.float64:
-    #     'Generate a random dither and test it'
-    #     dither = self.random_dither()
-    #     print(f"random dither: start_x = {dither.start_x}, start_y = {dither.start_y}, nums = {dither.nums}, denom = {dither.nums}")
-    #     fs = self.d.dither(dither, False) # no serpentine for now
-    #     cv2.imwrite(f"{PATH}random_pattern.PNG", fs)
-    #     return self.run_test(fs, image, filename, "random dither", False)
         
     def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool)->np.float64:
+        "Just calls scoreImage, and logs result, returns score"
         score1 = self.scoreImage(image, fs, filename + dithername + ('serpentine' if serpentine else 'ltor'))
         logging.info(f"{dithername} for {filename}, {'serpentine' if serpentine else 'left to right'}:")
         logging.info(f"\tssim: {score1.ssim}")
@@ -150,6 +157,7 @@ class ImageCompare(object):
         return score1.ssim
 
     def test_ditheralgo(self, kernel:DitherKernel, filename:str, testid:str, serpentine:bool, testname:str)->np.float64:
+        "Dithers and then scores result; writes out image dithered, returns score"
         image = getImage(PATH + filename + ".png")
         self.d = Ditherer(image)
         dithered_img = self.d.dither(kernel, serpentine)
@@ -158,6 +166,10 @@ class ImageCompare(object):
         return score
 
     def triangle_test(self, kernel:DitherKernel, testname:str, serpentine:bool)->np.float64:
+        """Standard test for Triangular dither. Works off a .npy file of greyscale info.
+        Uses original image to determine size, and the .npy file for the pixelated version
+        of the image. Logs location of images it writes and returns score"""
+
         idd = str(uuid.uuid4())
         os.mkdir(f"{PATH}{idd}")
 
@@ -171,14 +183,14 @@ class ImageCompare(object):
         # modify the default parameters of np.load
         np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
         # call load_data with allow_pickle implicitly set to true
-        greyset = np.load("data/greyset_bigme2.npy")
+        greyset = np.load(self.greyscale)
         # restore np.load for future normal usage
         np.load = np_load_old
 
         tri = Triangularizer(None, None, f"{PATH}{idd}/tri.png")
 
 #        image = Image.open("out_img/out_big_good.png").convert('LA').convert("RGBA")
-        image = Image.open("out_img/out_blkback.png").convert('LA').convert("RGBA")
+        image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
@@ -196,9 +208,10 @@ class ImageCompare(object):
 
         return score
 
-
+    # NOTE: this needs some re-thinking in terms of source images -- more variety
     def full_test_ditheralgo(self, kernel:DitherKernel, testname:str)->np.float64:
-        'Tests a single kernel with a series of images'
+        """Tests a single kernel with a series of progressively more difficult
+        images. Standard test for rectangular pixels."""
         idd = str(uuid.uuid4())
         os.mkdir(f"{PATH}{idd}")
 
@@ -238,7 +251,8 @@ def getImage(path:str) -> np.ndarray:
 
 
 def full_test_image(filename:str):
-    'Tests a single image in a series of dithers and controls'
+    """Tests a single image in a series of dithers and controls. This is used to determine
+    whether it is a good image to use to test new dithers"""
     logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
 
     image = getImage(PATH + filename + ".png")
@@ -255,30 +269,6 @@ def full_test_image(filename:str):
     imc.run_test(imc.d.dither(DitherKernel("Atkinson"), True), image, filename, "Atkinson", True)
 
     logging.info(f"COMPLETE {filename} TEST AT {datetime.datetime.now()}")
-
-def test_regular_serpentine(filename:str, kernel:DitherKernel):
-    logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
-
-    image = getImage(PATH + filename + ".png")
-    d = Ditherer(image)
-    imc = ImageCompare(d)
-
-#    jz = imc.test_dither(image, filename, DitherKernel(dithername), False)
-    imc.run_test(imc.d.dither(kernel, serpentine), image, filename, dithername, False)
-#    so = imc.test_dither(image, filename, DitherKernel(dithername), True)
-    imc.run_test(imc.d.dither(kernel, serpentine), image, filename, dithername, True)
-
-    logging.info(f"COMPLETE {filename} TEST AT {datetime.datetime.now()}")
-
-def random_dithers(minv:np.float64):
-    'Continues to generate a test random dithers until one gets over minv score'
-    score = 0.0
-    while (score < minv):
-        d = Ditherer(None)
-        imc = ImageCompare(d)
-        dither = imc.random_dither()
-        score = full_test_ditheralgo(dither, "RANDTEST")
-        logging.info(f"score sum = {score}")
 
 
 if __name__ == '__main__':
@@ -303,6 +293,8 @@ if __name__ == '__main__':
 
     d = Ditherer(None)
     imc = ImageCompare(d)
-    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
-#    score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False)
+    img.greyscale = "data/americans.npy"
+    img.original_img = "out_img/rfrank_big.png"
+#    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
+    score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False)
     logging.info(f"score = {score}")

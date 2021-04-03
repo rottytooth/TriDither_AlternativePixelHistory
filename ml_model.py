@@ -7,7 +7,7 @@ import numpy as np
 
 from dither_kernel import DitherKernel
 from ditherer import Ditherer
-from image_compare import ImageCompare, ImageScore
+from image_compare import ImageCompare, ImageScore, full_test_ditheralgo
 
 class DitherTester(object):
 
@@ -15,13 +15,12 @@ class DitherTester(object):
         self.im = ImageCompare(Ditherer())
         self.prev_attempts = []
 
-    def simulated_annealing(self, rows:int, cols:int, denom:int, final_score:int=None):
+    def simulated_annealing(self, rows:int, cols:int, denom:int, final_score:int=None)->DitherKernel:
         """Peforms simulated annealing to find a solution"""
         initial_score = 0.0
 
         if final_score is None:
             final_score = 2.7
-#        alpha = 0.01
 
         self.prev_attempts = []
         
@@ -61,15 +60,14 @@ class DitherTester(object):
 
         return solution
 
-    def get_score(self, state):
+    def get_score(self, state:DitherKernel):
         "Fitness function: assumes rect here, child classes should override this test"
         scores = self.im.full_test_ditheralgo(state, "RANDTEST")
         score_tot = np.array(scores).sum()
         if (scores[-1] > 0.5): score_tot += 0.5 # extra points for last piece, since others cause "return early" behavior in image compare
         return score_tot
 
-
-    def __get_random_sq(self,state):
+    def __get_random_sq(self, state:DitherKernel)->[int,int]:
         randy = random.randint(0, len(state.nums) - 1)
         if randy == state.start_y:
             randx = random.randint(state.start_x + 1, len(state.nums[randy]) - 1)
@@ -77,7 +75,7 @@ class DitherTester(object):
             randx = random.randint(0, len(state.nums[randy]) - 1)
         return randx, randy
 
-    def get_random_square(self, state, greaterThanZero=False):
+    def get_random_square(self, state:DitherKernel, greaterThanZero:bool=False)->[int,int]:
         """Determine a square to add to or subtract from"""
         randx, randy = self.__get_random_sq(state)
 
@@ -109,7 +107,7 @@ class DitherTester(object):
             retDither.denom = state.denom
             retDither.nums = copy.deepcopy(state.nums)
 
-            for a in range(0, random.randint(1, 5)):
+            for a in range(0, random.randint(1, 4)):
                 randx, randy = self.get_random_square(state)
                 retDither.nums[randy][randx] += 1
                 randx, randy = self.get_random_square(state, True)
@@ -134,9 +132,20 @@ class DitherTesterTriangle(DitherTester):
     def __init__(self):
         super(DitherTesterTriangle, self).__init__()
 
-    def get_score(self, state):
+    def get_score(self, state:DitherKernel):
         return self.im.triangle_test(state, "test_tri", False)
 
+
+def test_random_dithers(minv:np.float64):
+    """Test completely random dithers, with no ML. Used as control; how quickly this comes
+    to a passing score vs the machine learning model"""
+    score = 0.0
+    while (score < minv):
+        d = Ditherer(None)
+        imc = ImageCompare(d)
+        dither = imc.random_dither()
+        score = full_test_ditheralgo(dither, "RANDTEST")
+        logging.info(f"score sum = {score}")
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
