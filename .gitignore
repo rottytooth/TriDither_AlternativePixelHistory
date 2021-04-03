@@ -1,2 +1,5 @@
 .trid_env
 logs
+.vscode
+__pycache__
+Thumbs.db
