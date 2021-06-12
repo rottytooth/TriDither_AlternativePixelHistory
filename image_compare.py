@@ -187,14 +187,13 @@ class ImageCompare(object):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        tri = Triangularizer(None, f"{PATH}{idd}/tri.png")
+        tri = Triangularizer(None)
 
-#        image = Image.open("out_img/out_big_good.png").convert('LA').convert("RGBA")
         image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
-        x, dithered_img = tri.pixelate(image, width, height, dithered_tri)
+        x, dithered_img = tri.pixelate(image, width, height, dithered_tri, f"{PATH}{idd}/tri.png")
 
         filename = f"{idd}/greyset_fs"
 

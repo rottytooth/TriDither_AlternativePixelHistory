@@ -25,7 +25,7 @@ OUT_TRI_FINAL = "out_img/david.png"
 
 # a numpy array with greyscale data for pixelated version
 # this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
-GREY_LOCATION = "data/david.npy"
+GREY_LOCATION = "data/david_tri.npy"
 
 
 class Triangularizer(object):

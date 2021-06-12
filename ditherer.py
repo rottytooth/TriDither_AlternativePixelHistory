@@ -9,7 +9,11 @@ class Ditherer(object):
     def __init__(self, imgarray:np.ndarray=None):
         self.imgarray = imgarray
 
+    #FIXME:this ought to handle three- or more-color dithering
     def dither(self, kernel:DitherKernel, serpentine:bool) -> np.ndarray:
+        """
+        This accepts either an image (as PNG) or a raw .npy dataset produced by pixelating a non-rectangular image. Either way, it will treat each memory cell as a pixel and dither from black to white (this is two-color only)
+        """
         if self.imgarray is None:
             raise ValueError("Ditherer image not set")
             
@@ -59,11 +63,10 @@ class Ditherer(object):
 
 #-----------------------------------------------
 
-
 if __name__ == '__main__':
 
     PATH = '/Users/danieltemkin/Documents/TriDithers/MachineLearning/'
-    
+
     img = cv2.imread(PATH + "dtemkin.png")
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
