@@ -187,14 +187,14 @@ class ImageCompare(object):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        tri = Triangularizer(None, None, f"{PATH}{idd}/tri.png")
+        tri = Triangularizer(None, f"{PATH}{idd}/tri.png")
 
 #        image = Image.open("out_img/out_big_good.png").convert('LA').convert("RGBA")
         image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
-        x, dithered_img = tri.make_tri_pixels(image, width, height, dithered_tri)
+        x, dithered_img = tri.pixelate(image, width, height, dithered_tri)
 
         filename = f"{idd}/greyset_fs"
 
@@ -293,8 +293,8 @@ if __name__ == '__main__':
 
     d = Ditherer(None)
     imc = ImageCompare(d)
-    img.greyscale = "data/americans.npy"
-    img.original_img = "out_img/rfrank_big.png"
+    imc.greyscale = "data/07246.npy"
+    imc.original_img = "out_img/07246.png"
 #    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
     score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False)
     logging.info(f"score = {score}")

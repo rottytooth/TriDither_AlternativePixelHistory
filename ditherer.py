@@ -64,22 +64,22 @@ if __name__ == '__main__':
 
     PATH = '/Users/danieltemkin/Documents/TriDithers/MachineLearning/'
     
-    img = cv2.imread(PATH + "David_tiny.png")
+    img = cv2.imread(PATH + "dtemkin.png")
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     dith = Ditherer(img)
 
-    imgresult = dith.dither(DitherKernel("Floyd-Steinberg"), False)
-    cv2.imwrite(PATH + "David_tiny_FS.png", imgresult)
+    imgresult = dith.dither(DitherKernel("FloydSteinberg"), False)
+    cv2.imwrite(PATH + "dtemkin_FS.png", imgresult)
 
-    imgresult = dith.dither(DitherKernel("Floyd-Steinberg"), True)
-    cv2.imwrite(PATH + "David_tiny_FS_serp.png", imgresult)
+    # imgresult = dith.dither(DitherKernel("Floyd-Steinberg"), True)
+    # cv2.imwrite(PATH + "David_tiny_FS_serp.png", imgresult)
 
     imgresult = dith.dither(DitherKernel("Atkinson"), False)
-    cv2.imwrite(PATH + "David_tiny_Atkinson.png", imgresult)
+    cv2.imwrite(PATH + "dtemkin_Atkinson.png", imgresult)
 
-    imgresult = dith.dither(DitherKernel("Atkinson"), True)
-    cv2.imwrite(PATH + "David_tiny_Atkinson_serp.png", imgresult)
+    # imgresult = dith.dither(DitherKernel("Atkinson"), True)
+    # cv2.imwrite(PATH + "David_tiny_Atkinson_serp.png", imgresult)
 
     # imgresult = dith.dither(DitherKernel("Crisp"), True)
     # cv2.imwrite(PATH + "David_tiny.png", imgresult)

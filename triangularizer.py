@@ -8,32 +8,52 @@ from dither_kernel import DitherKernel, DITHERS
 from ditherer import Ditherer
 
 
-OFFSET = math.sqrt(3)/2
-PIXEL_HEIGHT = 10
+OFFSET = math.sqrt(3)/2 # relationship of triangle width to height
+PIXEL_HEIGHT = 10 # size of triangular pixels to draw in rectangular pixels
 
 SAVE_IMG_FILES = True
 
-INPUT_IMG = "source_img/robertfrank.jpg"
-OUT_TRI_FINAL = "out_img/rfrank_big.png"
-OUT_TRI_DITHERED = "out_img/rfrank_dith.png"
+
+# following Globals should ONLY be used OUTSIDE of Triangularizer object
+# and used to set parameters for Triangularizer
+
+# original source image
+INPUT_IMG = "source_img/david_tri_big.jpg"
+
+# the pixelated, triangular version will go here
+OUT_TRI_FINAL = "out_img/david.png"
+
+# a numpy array with greyscale data for pixelated version
+# this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
+GREY_LOCATION = "data/david.npy"
 
 
 class Triangularizer(object):
 
-    def __init__(self, outpath:str, outdithered:str):
+    def __init__(self, outpath:str):
         self.outpath = outpath
-        self.outdithered = outdithered
-
+#        self.outdithered = outdithered
+        self.greylocation = GREY_LOCATION
         self.pixel_height = PIXEL_HEIGHT
 
-    def get_triangle(self, width:int, height:int)->list:
+    def get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
         '''Returns the maximal vertical triangle for the available rectangle
         '''
-        trilength = min(width, round(height / OFFSET))
-        return [(width / 2 - trilength / 2, height), (width / 2 + trilength / 2, height), (width / 2, 0)]
 
-    def make_img_tri(self, im:Image.Image, cropshape:list, invisible_to_black:bool=False)->Image.Image:
-        '''Take a rectangular image and convert to the dimensions of the crop shape provided
+        # widest possible triangle width that will fit in the rectangle
+        # this is either the rect width, or the rect height divided by offset,
+        # as triangle width * offset == triangle height
+        triwidth = min(rwidth, round(rheight / OFFSET))
+
+        if (pixel_unitsize): # if we need to crop in terms of a unit size
+            triwidth = (triwidth % self.pixel_height) * self.pixel_height
+
+        trianglepoints = [(rwidth / 2 - triwidth / 2, triwidth * OFFSET), (rwidth / 2 + triwidth / 2, triwidth * OFFSET), (rwidth / 2, 0)]
+
+        return trianglepoints
+
+    def crop_to_shape(self, im:Image.Image, cropshape:list, invisible_to_black:bool=False)->Image.Image:
+        '''Take a rectangular image and convert to the dimensions of the crop vertices provided (from get_vertices_for_max_shape)
         '''
         # convert to numpy (for convenience)
         imArray = numpy.asarray(im)
@@ -63,9 +83,9 @@ class Triangularizer(object):
 
         return newIm
 
-    def find_avg(self, im:Image.Image)->int:
-        '''For a triangular shape, find all the (regular) pixels within it, determine
-        the average shade of grey
+    def find_avg_color(self, im:Image.Image)->int:
+        '''For a triangular shape, find all the (regular) pixels within it, 
+        determine the average shade of grey
         '''
         width, height = im.size
         pixelcount = 0
@@ -81,47 +101,50 @@ class Triangularizer(object):
             return 0
         return round(total / pixelcount)
         
-    def make_tri_pixels(self, im:Image.Image, width:int, height:int, greyscale_list=None)->[list,Image.Image]:
-        triheight = self.pixel_height
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None)->Image.Image:
+        '''
+        For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
+
+        The assumption is that a greyscale_list is a dithered version of that list (everything at black or white) and so if one is provided, we save to the outdithered location.
+        '''
+        triwidth = (self.pixel_height) / OFFSET
 
         greyset = [] # all the pixel shades of grey that we will dither
 
-        # width, height = im.size
-        trilength = min(height, width)
-
-        im = self.make_img_tri(im, self.get_triangle(width, height), True)
+        im = self.crop_to_shape(im, self.get_vertices_for_max_shape(width, height, True), True)
 
         draw = ImageDraw.Draw(im)
 
-        for row in range(math.floor(width / triheight)):
-            oddrow = (row % 2 == 1) # odd rows
+        for row in range(math.floor(min(height, width * OFFSET) / self.pixel_height)):
+            oddrow = (row % 2 == 1)
             greyset.append([])
             logging.debug(f"beginning row {row}")
             for col in range(0 - row, row + 1): 
                 oddcol = (col % 2 == 1)
-                xoffset = col * (triheight / 2)
+                xoffset = col * (triwidth / 2)
                 if (oddrow and oddcol) or (not oddrow and not oddcol):
                     #upturned
                     triangle = [
-                        (width / 2 - triheight / 2 + xoffset, triheight * OFFSET * (row + 1)), 
-                        (width / 2 + triheight / 2 + xoffset, triheight * OFFSET * (row + 1)), 
-                        (width / 2 + xoffset, triheight * OFFSET * row)]
+                        (width / 2 - triwidth / 2 + xoffset, triwidth * OFFSET * (row + 1)), 
+                        (width / 2 + triwidth / 2 + xoffset, triwidth * OFFSET * (row + 1)), 
+                        (width / 2 + xoffset, triwidth * OFFSET * row)]
                 else:
                     #downturned
                     triangle = [
-                        (width / 2 - triheight / 2 + xoffset, triheight * OFFSET * row), 
-                        (width / 2 + triheight / 2 + xoffset, triheight * OFFSET * row), 
-                        (width / 2 + xoffset, triheight * OFFSET * (row + 1))]
+                        (width / 2 - triwidth / 2 + xoffset, triwidth * OFFSET * row), 
+                        (width / 2 + triwidth / 2 + xoffset, triwidth * OFFSET * row), 
+                        (width / 2 + xoffset, triwidth * OFFSET * (row + 1))]
 
                 # find average grey and print it
                 if (greyscale_list is None): # if we are in the initial pixelating step, find avg color:
                     # make an image of just that triangle pixel so we can average the color
-                    small_tri = self.make_img_tri(im, triangle)
+                    small_tri = self.crop_to_shape(im, triangle)
 
                     # crop away the image outside that pixel
-                    small_tri = small_tri.crop((width / 2 - triheight / 2 + xoffset, triheight * OFFSET * row, width / 2 + triheight / 2 + xoffset, triheight * OFFSET * (row + 1)))
+                    small_tri = small_tri.crop((width / 2 - triwidth / 2 + xoffset, triwidth * OFFSET * row, width / 2 + triwidth / 2 + xoffset, triwidth * OFFSET * (row + 1)))
 
-                    color = math.floor(self.find_avg(small_tri))
+                    color = math.floor(self.find_avg_color(small_tri))
+
                 else:
                     color = greyscale_list[row][col + row]
 
@@ -129,13 +152,39 @@ class Triangularizer(object):
                 greyset[row].append(color)
 
         if SAVE_IMG_FILES:
+            if outlocation is None:
+                outlocation = self.outpath
+            im.save(outlocation)
+            logging.info(f"Saved to path {outlocation}")
+
             if greyscale_list is None:
-                im.save(self.outpath)
-                logging.info(f"Saved to path {self.outpath}")
-            else:
-                im.save(self.outdithered)
-                logging.info(f"Saved to path {self.outdithered}")
-        return greyset, im
+                # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
+                #FIXME: it might make sense for greylocation to be overrideable like outlocation
+                np.save(self.greylocation, greyset)
+                logging.info(f"Saved greyset to {self.greylocation}")
+
+
+        return im
+    
+    def get_greyscaledata(self, npyloc:str=GREY_LOCATION):
+        "LOAD GREYSCALE DATA FROM 'greyset' AND DITHER"
+
+        np_load_old = np.load
+
+        # modify the default parameters of np.load
+        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+
+        # call load_data with allow_pickle implicitly set to true
+        greyset = np.load(npyloc)
+
+        # restore np.load for future normal usage
+        np.load = np_load_old
+
+        # Inspect greyscale data
+        # for i in range(0,len(greyset)):
+        #     print(greyset[i])
+
+        return greyset
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
@@ -145,45 +194,22 @@ if __name__ == '__main__':
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
 
-    tri = Triangularizer(INPUT_IMG, OUT_TRI_FINAL, OUT_TRI_DITHERED)
+    tri = Triangularizer(OUT_TRI_FINAL)
 
     # read image as RGB, convert to greyscale, and add alpha (transparency)
     im = Image.open(INPUT_IMG).convert('LA').convert("RGBA")
 
     iwidth, iheight = im.size
-    trilength = min(iheight, iwidth)
-
-    # crop to proportions for eq triangle: (1 - OFFSET) * unit height, unit length width
-    im = im.crop((0, trilength * (1 - OFFSET), trilength, trilength))
-    iwidth, iheight = im.size # get current size
 
     # this creates the triangular-pixelled version
-    greyset, iim = tri.make_tri_pixels(im, iwidth, iheight)
-
-    np.save("data/americans", greyset)
-
-    # save tri pixel colors to later dither
-    # for i in range(0,len(greyset)):
-    #     print(greyset[i])
+    iim = tri.pixelate(im, iwidth, iheight)
 
 
-    # LOAD GREYSCALE DATA FROM "greyset" AND DITHER
 
-    np_load_old = np.load
-
-    # modify the default parameters of np.load
-    np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
-
-    # call load_data with allow_pickle implicitly set to true
-    greyset = np.load("data/americans.npy")
-
-    # restore np.load for future normal usage
-    np.load = np_load_old
-
-
+    # Take im data returned from Triangularizer and dither it:
     # ditherer = Ditherer(greyset)
     # dith_greys = ditherer.dither(DitherKernel("FloydSteinberg"), False)
 
     # im = im.getdata()
-    # tri.make_tri_pixels(im, iwidth, iheight, dith_greys)
+    # tri.pixelate(im, iwidth, iheight, dith_greys)
 
