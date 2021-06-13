@@ -4,16 +4,17 @@ import numpy as np
 from dither_kernel import DITHERS, DitherKernel
 from ditherer import Ditherer
 from triangularizer import Triangularizer
+from righttriangularizer import Righttriangularizer
 
 ORIGINAL_IMAGE = 'source_img/david_tri_big.jpg'
 
-GREYSET = 'data/david_tri.npy'
+GREYSET = 'data/david_tri_right.npy'
 
-OUTPATH = 'out_img/david_tri_big.png'
+OUTPATH = 'out_img/david_tri_right.png'
 
 DITHER = DitherKernel("FloydSteinberg")
 
-tri = Triangularizer(None)
+tri = Righttriangularizer(None)
 
 np_load_old = np.load
 # modify the default parameters of np.load

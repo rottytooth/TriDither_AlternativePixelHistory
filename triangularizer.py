@@ -6,6 +6,7 @@ import numpy as np
 
 from dither_kernel import DitherKernel, DITHERS
 from ditherer import Ditherer
+from shapizer import Shapizer
 
 
 OFFSET = math.sqrt(3)/2 # relationship of triangle width to height
@@ -28,15 +29,14 @@ OUT_TRI_FINAL = "out_img/david.png"
 GREY_LOCATION = "data/david_tri.npy"
 
 
-class Triangularizer(object):
+class Triangularizer(Shapizer):
 
-    def __init__(self, outpath:str):
-        self.outpath = outpath
-#        self.outdithered = outdithered
+    def __init__(self, default_outpath:str=None):
+        self.default_outpath = default_outpath
         self.greylocation = GREY_LOCATION
         self.pixel_height = PIXEL_HEIGHT
 
-    def get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
+    def _get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
         '''Returns the maximal vertical triangle for the available rectangle
         '''
 
@@ -46,60 +46,11 @@ class Triangularizer(object):
         triwidth = min(rwidth, round(rheight / OFFSET))
 
         if (pixel_unitsize): # if we need to crop in terms of a unit size
-            triwidth = (triwidth % self.pixel_height) * self.pixel_height
+            triwidth = math.floor(triwidth / self.pixel_height) * self.pixel_height
 
         trianglepoints = [(rwidth / 2 - triwidth / 2, triwidth * OFFSET), (rwidth / 2 + triwidth / 2, triwidth * OFFSET), (rwidth / 2, 0)]
 
         return trianglepoints
-
-    def crop_to_shape(self, im:Image.Image, cropshape:list, invisible_to_black:bool=False)->Image.Image:
-        '''Take a rectangular image and convert to the dimensions of the crop vertices provided (from get_vertices_for_max_shape)
-        '''
-        # convert to numpy (for convenience)
-        imArray = numpy.asarray(im)
-
-        # create mask
-        maskIm = Image.new('L', (imArray.shape[1], imArray.shape[0]), 0)
-        ImageDraw.Draw(maskIm).polygon(cropshape, outline=1, fill=1)
-        mask = numpy.array(maskIm)
-
-        # assemble new image (uint8: 0-255)
-        newImArray = numpy.empty(imArray.shape,dtype='uint8')
-
-        # colors (three first columns, RGB)
-        newImArray[:,:,:3] = imArray[:,:,:3]
-
-        # transparency (4th column)
-        newImArray[:,:,3] = mask*255
-
-        # if invisible_to_black:
-        #     for a in range(0,len(newImArray)):
-        #         for b in range(0,len(newImArray[a])):
-        #             if newImArray[a][b][3] == 0:
-        #                 newImArray[a][b] = [0, 0, 0, 0]
-
-        # back to Image from numpy
-        newIm = Image.fromarray(newImArray, "RGBA")
-
-        return newIm
-
-    def find_avg_color(self, im:Image.Image)->int:
-        '''For a triangular shape, find all the (regular) pixels within it, 
-        determine the average shade of grey
-        '''
-        width, height = im.size
-        pixelcount = 0
-        total = 0
-
-        for x in range(width):
-            for y in range(height):
-                r,g,b,a = im.getpixel((x,y))
-                if a > 0:
-                    total += r # this assumes greyscale in rgb space; only looks at red value of pixel
-                    pixelcount += 1
-        if pixelcount == 0:
-            return 0
-        return round(total / pixelcount)
         
     def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None)->Image.Image:
         '''
@@ -111,7 +62,7 @@ class Triangularizer(object):
 
         greyset = [] # all the pixel shades of grey that we will dither
 
-        im = self.crop_to_shape(im, self.get_vertices_for_max_shape(width, height, True), True)
+        im = self.crop_to_shape(im, self._get_vertices_for_max_shape(width, height, True), True)
 
         draw = ImageDraw.Draw(im)
 
@@ -141,7 +92,7 @@ class Triangularizer(object):
                     small_tri = self.crop_to_shape(im, triangle)
 
                     # crop away the image outside that pixel
-                    small_tri = small_tri.crop((width / 2 - triwidth / 2 + xoffset, triwidth * OFFSET * row, width / 2 + triwidth / 2 + xoffset, triwidth * OFFSET * (row + 1)))
+                    small_tri = small_tri.crop(self._get_rect_for_polygon(triangle))
 
                     color = math.floor(self.find_avg_color(small_tri))
 
@@ -153,7 +104,7 @@ class Triangularizer(object):
 
         if SAVE_IMG_FILES:
             if outlocation is None:
-                outlocation = self.outpath
+                outlocation = self.default_outpath
             im.save(outlocation)
             logging.info(f"Saved to path {outlocation}")
 
@@ -166,25 +117,6 @@ class Triangularizer(object):
 
         return im
     
-    def get_greyscaledata(self, npyloc:str=GREY_LOCATION):
-        "LOAD GREYSCALE DATA FROM 'greyset' AND DITHER"
-
-        np_load_old = np.load
-
-        # modify the default parameters of np.load
-        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
-
-        # call load_data with allow_pickle implicitly set to true
-        greyset = np.load(npyloc)
-
-        # restore np.load for future normal usage
-        np.load = np_load_old
-
-        # Inspect greyscale data
-        # for i in range(0,len(greyset)):
-        #     print(greyset[i])
-
-        return greyset
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
