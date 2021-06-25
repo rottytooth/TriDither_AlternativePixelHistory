@@ -49,8 +49,14 @@ class Righttriangularizer(Shapizer):
         trianglepoints = [(0, triwidth), (triwidth, triwidth), (0, 0)]
 
         return trianglepoints
+
+    def _get_max_rect(self, rwidth:int, rheight:int)->list:
+        newwidth = math.floor(rwidth / self.pixel_height) * self.pixel_height
+        newheight = math.floor(rheight / self.pixel_height) * self.pixel_height
+        return [(0, 0),(newwidth, 0), (newwidth, newheight), (0, newheight)]
+
         
-    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None)->Image.Image:
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, rectangular=False)->Image.Image:
         '''
         For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
 
@@ -60,14 +66,19 @@ class Righttriangularizer(Shapizer):
 
         greyset = [] # all the pixel shades of grey that we will dither
 
-        im = self.crop_to_shape(im, self._get_vertices_for_max_shape(width, height, True), True)
+        shape = self._get_max_rect(width, height) if rectangular else self._get_vertices_for_max_shape(width, height, True)
+
+        im = self.crop_to_shape(im, shape, True)
 
         draw = ImageDraw.Draw(im)
 
         for row in range(math.floor(min(height, width) / self.pixel_height)):
             greyset.append([])
             logging.debug(f"beginning row {row}")
-            for col in range(0, row * 2 + 1): 
+
+            width_of_row = math.floor(width / self.pixel_height) * 2 if rectangular else row * 2 + 1
+
+            for col in range(0, width_of_row): 
                 oddcol = (col % 2 == 1)
                 xoffset = (col / 2 - (.5 if oddcol else 0)) * triwidth
                 if oddcol:
@@ -133,7 +144,7 @@ if __name__ == '__main__':
     iwidth, iheight = im.size
 
     # this creates the triangular-pixelled version
-    iim = tri.pixelate(im, iwidth, iheight)
+    iim = tri.pixelate(im, iwidth, iheight, rectangular=True)
 
 
 

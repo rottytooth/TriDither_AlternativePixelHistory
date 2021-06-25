@@ -30,5 +30,5 @@ width, height = image.size
 ditherer = Ditherer(greyset)
 
 dithered_tri = ditherer.dither(DITHER, False)
-tri.pixelate(image, width, height, OUTPATH, dithered_tri)
+tri.pixelate(image, width, height, OUTPATH, dithered_tri, True)
 

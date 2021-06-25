@@ -30,7 +30,9 @@ class Shapizer(object):
 
         # create mask
         maskIm = Image.new('L', (imArray.shape[1], imArray.shape[0]), 0)
+
         ImageDraw.Draw(maskIm).polygon(cropshape, outline=1, fill=1)
+
         mask = numpy.array(maskIm)
 
         # assemble new image (uint8: 0-255)
