@@ -57,7 +57,7 @@ class Ditherer(object):
             for i in range(0, len(kernel.nums[j])):
                 # i, j = location inside the kernel
                 # x_use, y_use = actual pixel location in the dither
-                
+
                 # we're flowing right to left and need to flip the location of the x we're using
                 x_use = x + (i if ltor else -1) - kernel.start_x
                 y_use = y + j - kernel.start_y
@@ -67,7 +67,7 @@ class Ditherer(object):
 
                 # if we are not out of range
                 if y_use >= 0 and y_use < len(self.imgarray) \
-                    and x_use >= 0 and x_use < len(self.imgarray[y]):
+                    and x_use >= 0 and x_use < len(self.imgarray[y_use]):
 
                     retarray[y_use][x_use] = self.clamp(retarray[y_use][x_use] - diff * kernel.nums[j][i] / kernel.denom, 0, 255)
 
