@@ -19,14 +19,14 @@ SAVE_IMG_FILES = True
 # and used to set parameters for Triangularizer
 
 # original source image
-INPUT_IMG = "source_img/david_tri_big.jpg"
+INPUT_IMG = "source_img/gradient_medsmall.png"
 
 # the pixelated, triangular version will go here
-OUT_TRI_FINAL = "out_img/david.png"
+OUT_TRI_FINAL = "out_img/gradient_tri_medsmall.png"
 
 # a numpy array with greyscale data for pixelated version
 # this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
-GREY_LOCATION = "data/david_tri.npy"
+GREY_LOCATION = "data/gradient_tri_medsmall.npy"
 
 
 class Triangularizer(Shapizer):
@@ -134,8 +134,9 @@ if __name__ == '__main__':
     iwidth, iheight = im.size
 
     # this creates the triangular-pixelled version
+    logging.info(f"Begin pixelation")
     iim = tri.pixelate(im, iwidth, iheight)
-
+    logging.info("Complete pixelation")
 
 
     # Take im data returned from Triangularizer and dither it:

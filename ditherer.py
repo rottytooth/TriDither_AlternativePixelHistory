@@ -10,7 +10,8 @@ class Ditherer(object):
     def __init__(self, imgarray:np.ndarray=None):
         self.imgarray = imgarray
 
-    #FIXME:this ought to handle three- or more-color dithering
+    # TODO: handle three- or more-color dithering
+    # That may cause issues with the percentage
     def dither(self, kernel:DitherKernel, serpentine:bool=False, percent:int=100) -> np.ndarray:
         """
         This accepts either an image (as PNG) or a raw .npy dataset produced by pixelating a non-rectangular image. Either way, it will treat each memory cell as a pixel and dither from black to white (this is two-color only)
@@ -36,12 +37,31 @@ class Ditherer(object):
     
     def change_contrast(self, img_arr:np.ndarray, percent:int):
 
+        # if it is a staggered list, we need to convert to a rectangle for PIL
+        needs_reshaping = (len(img_arr.shape) < 2)
+
+        if needs_reshaping:
+            # get size of every row in greyset so we can return to these at the end
+            # sizelist = [len(i) for i in img_arr]
+
+            # get longest length
+            longest = len(max(img_arr, key=len))
+
+            rectshape = np.empty((len(img_arr), longest), dtype=np.uint8)
+
+            for i in range(0, len(img_arr)):
+                rectshape[i] = np.concatenate((img_arr[i], np.repeat(0, longest - len(img_arr[i])))).astype(np.uint8)
+
+            original_arr = img_arr.copy()
+            img_arr = rectshape
+
+        # we only have a contrast process for color
         img_arr = cv2.cvtColor(img_arr, cv2.COLOR_GRAY2RGB)
         img = Image.fromarray(img_arr)
         img.load()
 
         if not (0 < percent <= 100):
-            raise "out of range"
+            raise "percent specified is out of range"
         level = 259 - (2.59 * percent)
         factor = (259 * (level + 255)) / (255 * (259 - level))
         def contrast(c):
@@ -49,7 +69,14 @@ class Ditherer(object):
             return max(0, min(255, value))
         final_img = img.point(contrast)
 
-        return cv2.cvtColor(np.array(final_img), cv2.COLOR_RGB2GRAY)
+        retset = cv2.cvtColor(np.array(final_img), cv2.COLOR_RGB2GRAY)
+
+        if needs_reshaping: # convert back to staggered shape
+            for a in range(0, len(original_arr)):
+                original_arr[a] = retset[a][:len(original_arr[a])]
+            retset = original_arr
+
+        return retset
 
     def calculate_cell(self, kernel:DitherKernel, x:int, y:int, retarray:np.ndarray, ltor:bool, percent:int):
 
@@ -100,32 +127,13 @@ if __name__ == '__main__':
     IN_PATH = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/source_img/'
 
 
-
     percent = 50
-
-
-    # open in PIL and then pass to Ditherer as cv2   
-    # img_to_contrast = Image.open(IN_PATH + "gradient.png")
-    # img_to_contrast.load()
-    # img = change_contrast2(img_to_contrast, percent)
-    # img_cv2 = np.array(img)
-    # dith = Ditherer(cv2.cvtColor(img_cv2, cv2.COLOR_RGB2GRAY))
 
     # work off image already in Ditherer
     dith = Ditherer(cv2.cvtColor(cv2.imread(IN_PATH + "gradient.png"), cv2.COLOR_BGR2GRAY))
 
-
     imgresult = dith.dither(DitherKernel("FloydSteinberg"), False, percent)
     cv2.imwrite(PATH + f"gradient_FS_{percent}ci-init.png", imgresult)
 
-    # imgresult = dith.dither(DitherKernel("Floyd-Steinberg"), True)
-    # cv2.imwrite(PATH + "David_tiny_FS_serp.png", imgresult)
-
     imgresult = dith.dither(DitherKernel("Atkinson"), False, percent)
     cv2.imwrite(PATH + f"gradient_Atkinson_{percent}ci-init.png", imgresult)
-
-    # imgresult = dith.dither(DitherKernel("Atkinson"), True)
-    # cv2.imwrite(PATH + "David_tiny_Atkinson_serp.png", imgresult)
-
-    # imgresult = dith.dither(DitherKernel("Crisp"), True)
-    # cv2.imwrite(PATH + "David_tiny.png", imgresult)
