@@ -78,6 +78,20 @@ DITHERS = {
                 "denom" : 8,
                 "nums" : [[0, 0, 0, 3, 1], [1, 0, 1, 2]]
         },
+
+        "FloydSteinbergTriVariation":
+                { "start_x" : 2,
+                "start_y" : 0,
+                "denom" : 13,
+                "nums" : [[0, 0, 0, 4, 2], [1, 0, 0, 1, 2, 1, 2]]
+        },
+        "FSTriTwo":
+        {
+                "start_x" : 1,
+                "start_y" : 0,
+                "denom" : 18,
+                "nums" : [[0, 0, 4, 2, 1], [2, 4, 1, 1, 2, 1]]
+        }
 }
 
 class DitherKernel(object):

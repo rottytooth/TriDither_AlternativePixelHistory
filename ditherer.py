@@ -12,13 +12,13 @@ class Ditherer(object):
 
     # TODO: handle three- or more-color dithering
     # That may cause issues with the percentage
-    def dither(self, kernel:DitherKernel, serpentine:bool=False, percent:int=100) -> np.ndarray:
+    def dither(self, kernel:DitherKernel, serpentine:bool=False, percent:int=100, rowoffset:bool=False) -> np.ndarray:
         """
         This accepts either an image (as PNG) or a raw .npy dataset produced by pixelating a non-rectangular image. Either way, it will treat each memory cell as a pixel and dither from black to white (this is two-color only)
         """
         if self.imgarray is None:
             raise ValueError("Ditherer image not set")
-            
+
         retarray = self.imgarray.copy()
 
         if percent < 100:
@@ -28,13 +28,54 @@ class Ditherer(object):
 
             if (serpentine == False or y % 2 == 0): # direction
                 for x in range(0, len(self.imgarray[y])):
-                    retarray = self.calculate_cell(kernel, x, y, retarray, True, percent)
+                    retarray = self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
             else:
                 for x in range(len(self.imgarray[y]) -1, -1, -1):
-                    retarray = self.calculate_cell(kernel, x, y, retarray, False, percent)
+                    retarray = self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
 
         return retarray
-    
+
+    def calculate_cell(self, kernel:DitherKernel, x:int, y:int, retarray:np.ndarray, ltor:bool, percent:int, rowoffset:bool):
+        """ Rounds a single cell to black (0) or white (255). If there is a rowoffset, applies that
+        """
+
+        original_value = retarray[y][x]
+
+        # round to black or white
+        if retarray[y][x] > 127:
+            diff = 255 - retarray[y][x]
+            retarray[y][x] = 255
+        else:
+            diff = 0 - retarray[y][x]
+            retarray[y][x] = 0
+
+        if diff == 0: return retarray
+
+        p = percent / 100.0 * 255
+
+        for j in range(0, len(kernel.nums)):
+            for i in range(0, len(kernel.nums[j])):
+                # i, j = location inside the kernel
+                # x_use, y_use = actual pixel location in the dither
+                
+                # we're flowing right to left and need to flip the location of the x we're using
+                x_use = x + (i if ltor else -1) - kernel.start_x
+                y_use = y + j - kernel.start_y
+
+                # if we're in a second or third row and need to apply offset if there is one
+                x_use += (1 if rowoffset else 0) * j * (1 if ltor else -1)
+
+                # if we are not out of range
+                if y_use >= 0 and y_use < len(self.imgarray) \
+                    and x_use >= 0 and x_use < len(self.imgarray[y]):
+
+                    retarray[y_use][x_use] = self.clamp(retarray[y_use][x_use] - diff * kernel.nums[j][i] / kernel.denom, 0, 255)
+
+        return retarray
+
+    def clamp(self, val, minv, maxv):
+        return max(min(maxv, val), minv)
+
     def change_contrast(self, img_arr:np.ndarray, percent:int):
 
         # if it is a staggered list, we need to convert to a rectangle for PIL
@@ -77,43 +118,6 @@ class Ditherer(object):
             retset = original_arr
 
         return retset
-
-    def calculate_cell(self, kernel:DitherKernel, x:int, y:int, retarray:np.ndarray, ltor:bool, percent:int):
-
-        original_value = retarray[y][x]
-
-        if retarray[y][x] > 127:
-            diff = 255 - retarray[y][x]
-            retarray[y][x] = 255
-        else:
-            diff = 0 - retarray[y][x]
-            retarray[y][x] = 0
-
-        if diff == 0: return retarray
-
-        p = percent / 100.0 * 255
-
-        for j in range(0, len(kernel.nums)):
-            for i in range(0, len(kernel.nums[j])):
-                x_use = x + i - kernel.start_x
-                y_use = y + j - kernel.start_y
-
-                if not ltor:
-                    # we're flowing right to left and need to flip the location of the
-                    # x we're using
-                    x_use = x - i + kernel.start_x
-
-                # if we are not out of range
-                if y_use >= 0 and y_use < len(self.imgarray) \
-                    and x_use >= 0 and x_use < len(self.imgarray[y]):
-
-                    retarray[y_use][x_use] = self.clamp(retarray[y_use][x_use] - diff * kernel.nums[j][i] / kernel.denom, 0, 255)
-
-        return retarray
-
-    def clamp(self, val, minv, maxv):
-        return max(min(maxv, val), minv)
-
 #-----------------------------------------------
 
 if __name__ == '__main__':

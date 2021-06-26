@@ -7,13 +7,15 @@ from ditherer import Ditherer
 from triangularizer import Triangularizer
 from righttriangularizer import Righttriangularizer
 
-ORIGINAL_IMAGE = "source_img/gradient_medsmall.png"
+# used only to correctly size the final image
+ORIGINAL_IMAGE = "source_img/gradient_700_higher.jpg"
 
-GREYSET = "data/gradient_tri_medsmall.npy"
+GREYSET = "data/gradient_tri_700_higher.npy"
 
-OUTPATH = f"out_img/gradient_tri_medsmall_FS_%PERCENT%.png"
+OUTPATH = f"out_img/gradient_tri_700_FS3_%PERCENT%.png"
 
 DITHER = DitherKernel("FloydSteinberg")
+#DITHER = DitherKernel("FSTriTwo")
 
 #tri = Righttriangularizer(None)
 tri = Triangularizer(None)
@@ -31,9 +33,10 @@ width, height = image.size
 
 ditherer = Ditherer(greyset)
 
-for i in range(1, 100, 3):
+
+for i in range(1, 101, 3):
     
-    dithered_tri = ditherer.dither(DITHER, False, i)
+    dithered_tri = ditherer.dither(kernel=DITHER, serpentine=False, percent=i, rowoffset=True)
 
     tri.pixelate(image, width, height, OUTPATH.replace("%PERCENT%",str(i)), dithered_tri)
 
