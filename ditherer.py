@@ -96,6 +96,9 @@ class Ditherer(object):
             original_arr = img_arr.copy()
             img_arr = rectshape
 
+        if img_arr.dtype != np.uint8:
+            img_arr = img_arr.astype(np.uint8)
+
         # we only have a contrast process for color
         img_arr = cv2.cvtColor(img_arr, cv2.COLOR_GRAY2RGB)
         img = Image.fromarray(img_arr)

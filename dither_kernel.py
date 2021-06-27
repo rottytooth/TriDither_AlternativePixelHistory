@@ -91,6 +91,27 @@ DITHERS = {
                 "start_y" : 0,
                 "denom" : 18,
                 "nums" : [[0, 0, 4, 2, 1], [2, 4, 1, 1, 2, 1]]
+        },
+        "StephensonArceForTriangles":
+        {
+                "start_x" : 3,
+                "start_y" : 0,
+                "denom" : 200,
+                "nums" : [[0,0,0,0,0,32], [12,12,26,26,30,12,16], [5,0,12,0,12,0,5]]
+        },
+        "StephensonArceForTrianglesAlt":
+        {
+                "start_x" : 3,
+                "start_y" : 0,
+                "denom" : 200,
+                "nums" : [[0,0,0,0,32], [12,12,26,26,30,12,16], [5,6,6,6,6,2,3]]
+        },
+        "StephensonArce":
+        {
+                "start_x" : 1,
+                "start_y" : 0,
+                "denom" : 200,
+                "nums" : [[0,0,32],[12,26,30,16],[12,26,12,0],[5,12,12,5]]
         }
 }
 

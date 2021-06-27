@@ -4,6 +4,9 @@ from random import randrange
 OUT_FILE = "out_img/ub4_2.png"
 
 class Pattern:
+    """
+    Draws the UB4 pattern of squares and heptagons
+    """
 
     def __init__(self):
         self.scale = 100
