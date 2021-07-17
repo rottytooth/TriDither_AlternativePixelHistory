@@ -21,14 +21,14 @@ SAVE_IMG_FILES = True
 # and used to set parameters for Triangularizer
 
 # original source image
-INPUT_IMG = "source_img/gradient_med.png"
+INPUT_IMG = "source_img/david_tiny.jpg"
 
 # the pixelated, hexagonal version will go here
-OUT_TRI_FINAL = "out_img/gradient_hex_med.png"
+OUT_TRI_FINAL = "out_img/david_hex_tiny.png"
 
 # a numpy array with greyscale data for pixelated version
 # this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
-GREY_LOCATION = "data/gradient_hex_med.npy"
+GREY_LOCATION = "data/david_hex_tiny.npy"
 
 
 class Hexagonizer(Shapizer):
@@ -37,6 +37,8 @@ class Hexagonizer(Shapizer):
         self.default_outpath = default_outpath
         self.greylocation = GREY_LOCATION
         self.pixel_height = PIXEL_HEIGHT
+
+    # FIXME: should we be cropping to hex? If so, this is where we do it
 
     # def _get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
     #     '''Returns the maximal vertical triangle for the available rectangle

@@ -9,19 +9,19 @@ from righttriangularizer import Righttriangularizer
 from hexagonizer import Hexagonizer
 
 # used only to correctly size the final image
-ORIGINAL_IMAGE = "source_img/gradient_700.jpg"
+ORIGINAL_IMAGE = "source_img/david_tiny.jpg"
 
-GREYSET = "data/gradient_rt_700.npy"
+GREYSET = "data/david_hex_tiny.npy"
 
-OUTPATH = f"out_img/gradient_rt_700_FS_%PERCENT%.png"
+OUTPATH = f"out_img/david_tiny_hex_%PERCENT%.png"
 
-#DITHER = DitherKernel("StephensonArce")
-DITHER = DitherKernel("FloydSteinberg")
+DITHER = DitherKernel("StephensonArce")
+#DITHER = DitherKernel("FloydSteinberg")
 #DITHER = DitherKernel("FSTriTwo")
 
-tri = Righttriangularizer(None)
+#tri = Righttriangularizer(None)
 #tri = Triangularizer(None)
-#tri = Hexagonizer(None)
+tri = Hexagonizer(None)
 
 np_load_old = np.load
 # modify the default parameters of np.load
@@ -38,9 +38,9 @@ ditherer = Ditherer(greyset)
 
 IS_EQ_TRIANGLE = False
 
-for i in range(1, 101, 3):
+for i in range(100,101): #range(1, 101, 3):
     
     dithered_tri = ditherer.dither(kernel=DITHER, serpentine=False, percent=i, rowoffset=IS_EQ_TRIANGLE)
 
-    tri.pixelate(image, width, height, OUTPATH.replace("%PERCENT%",str(i)), dithered_tri, rectangular=True)
+    tri.pixelate(image, width, height, OUTPATH.replace("%PERCENT%",str(i)), dithered_tri) #, rectangular=True)
 
