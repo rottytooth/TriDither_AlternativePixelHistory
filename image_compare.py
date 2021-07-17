@@ -15,8 +15,9 @@ from PIL import Image, ImageOps
 from dither_kernel import DITHERS, DitherKernel
 from ditherer import Ditherer
 from triangularizer import Triangularizer
+from righttriangularizer import Righttriangularizer
 
-PATH = '/Users/danieltemkin/Documents/TriDithers/MachineLearning/'
+PATH = 'C:\\Repos\\TriDither_out\\'
 
 
 class ImageScore(object):
@@ -187,13 +188,15 @@ class ImageCompare(object):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        tri = Triangularizer(None)
+        tri = Righttriangularizer(None)
 
         image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
-        x, dithered_img = tri.pixelate(image, width, height, dithered_tri, f"{PATH}{idd}/tri.png")
+
+        # FIXME: for Righttriangulator only
+        dithered_img = tri.pixelate(image, width, height, f"{PATH}{idd}/tri.png", dithered_tri, rectangular=True)
 
         filename = f"{idd}/greyset_fs"
 

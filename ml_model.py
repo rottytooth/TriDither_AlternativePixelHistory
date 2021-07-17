@@ -4,10 +4,11 @@ import logging
 import copy
 import datetime
 import numpy as np
+import os
 
 from dither_kernel import DitherKernel
 from ditherer import Ditherer
-from image_compare import ImageCompare, ImageScore, full_test_ditheralgo
+from image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
 
 class DitherTester(object):
 
@@ -161,6 +162,10 @@ if __name__ == '__main__':
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
     dt = DitherTesterTriangle()
+    
+    dt.im.greyscale = os.path.abspath("data/david_rt_big.npy")
+    dt.im.original_img = os.path.abspath("source_img/david_tri_big.jpg")
+    
     final = dt.simulated_annealing(2, 4, 8, .7)
 
     logging.info("SOLUTION FOUND")
