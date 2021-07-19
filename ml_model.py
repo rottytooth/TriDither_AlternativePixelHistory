@@ -34,6 +34,7 @@ class DitherTester(object):
 
         current_score = self.get_score(current_state)
 
+#        for counter in range(0,1):
         while current_score < final_score:
             neighbor = random.choice(self.get_neighbors(current_state))
             logging.info(f"Neighbor to test = {neighbor.nums}")
@@ -94,12 +95,14 @@ class DitherTester(object):
             return True
         return False
 
-    def get_neighbors(self, state:DitherKernel):
+    def get_neighbors(self, state:DitherKernel, setgoal:int=None):
         """Build a set of neighbors with variations of your current kernel"""
         retset = []
-        goal = random.randint(3, 6)
+        goal = setgoal
+        if setgoal == None:
+            goal = random.randint(3, 6)
         count = 0
-        DROPOUT = 100
+        DROPOUT = 1000
 
         while len(retset) < goal:
             retDither = DitherKernel()
@@ -125,16 +128,17 @@ class DitherTester(object):
 
             count += 1
             if (count > DROPOUT):
-                raise("Could not produce neighbors")
+                raise Exception("Could not produce neighbors")
 
         return retset
 
 class DitherTesterTriangle(DitherTester):
-    def __init__(self):
+    def __init__(self, now):
+        self.now = now
         super(DitherTesterTriangle, self).__init__()
 
     def get_score(self, state:DitherKernel):
-        return self.im.triangle_test(state, "test_tri", False)
+        return self.im.triangle_test(state, "test_tri", False, self.now)
 
 
 def test_random_dithers(minv:np.float64):
@@ -153,7 +157,8 @@ if __name__ == '__main__':
     rootLogger = logging.getLogger()
 
     now = datetime.datetime.now()
-    fileHandler = logging.FileHandler(f"logs/dithering_{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}.log")
+    nowstr = f"{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}"
+    fileHandler = logging.FileHandler(f"logs/dithering_{nowstr}.log")
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     rootLogger.setLevel(logging.INFO)
@@ -161,12 +166,12 @@ if __name__ == '__main__':
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
-    dt = DitherTesterTriangle()
+    dt = DitherTesterTriangle(nowstr)
     
     dt.im.greyscale = os.path.abspath("data/david_rt_big.npy")
     dt.im.original_img = os.path.abspath("source_img/david_tri_big.jpg")
     
-    final = dt.simulated_annealing(2, 4, 8, .7)
+    final = dt.simulated_annealing(3, 8, 32, .7)
 
     logging.info("SOLUTION FOUND")
     logging.info(f"start_x = {final.start_x}")

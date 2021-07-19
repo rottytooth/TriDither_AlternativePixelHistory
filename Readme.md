@@ -20,12 +20,12 @@ Essentially, it's like running the ditherer except it writes out the image
 
 # ml_model / DitherTester and DitherTesterTriangle
 
-Called directly, scores an image using Structural Similarity Index
-
-- to do: add contrast controls so Atkinson dither and others that are good for middle range can be found
+- runs simulated annealing to generate dithers and then calculates ImageScore for an image
 
 # image_compare / ImageCompare
 
-- runs simulated annealing to generate dithers and then calculates ImageScore for an image
+Called directly, scores an image using Structural Similarity Index
+
+- to do: add contrast controls so Atkinson dither and others that are good for middle range can be found
 
 

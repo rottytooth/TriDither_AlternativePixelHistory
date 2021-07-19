@@ -56,7 +56,7 @@ class Righttriangularizer(Shapizer):
         return [(0, 0),(newwidth, 0), (newwidth, newheight), (0, newheight)]
 
         
-    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, rectangular=False)->Image.Image:
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, rectangular=False, save_files=SAVE_IMG_FILES)->Image.Image:
         '''
         For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
 
@@ -112,7 +112,7 @@ class Righttriangularizer(Shapizer):
                 draw.polygon(triangle, fill=(int(color),int(color),int(color),255))
                 greyset[row].append(color)
 
-        if SAVE_IMG_FILES:
+        if save_files:
             if outlocation is None:
                 outlocation = self.default_outpath
             im.save(outlocation)

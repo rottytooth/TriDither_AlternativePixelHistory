@@ -17,7 +17,7 @@ from ditherer import Ditherer
 from triangularizer import Triangularizer
 from righttriangularizer import Righttriangularizer
 
-PATH = 'C:\\Repos\\TriDither_out\\'
+PATH = 'out/'
 
 
 class ImageScore(object):
@@ -112,6 +112,9 @@ class ImageCompare(object):
 
         denom_count = retDither.denom # how much is left before we have 100% distribution of error
 
+        # distribute the total num value by row
+        row_distribution = np.round(np.random.dirichlet(np.ones(matrixrows),size=1)*retDither.denom, 0)[0].astype(int).tolist()
+
         for y in range(0, height):
             if y < retDither.start_y:
                 # append row with all 0s
@@ -119,10 +122,10 @@ class ImageCompare(object):
             elif y == retDither.start_y:
                 # distribute but leave first few cells for 0s
                 row = [0] * (retDither.start_x + 1)
-                row += np.round(np.random.dirichlet(np.ones(width - retDither.start_x),size=1)*4.0, 0)[0].astype(int).tolist() # array in array
+                row += np.round(np.random.dirichlet(np.ones(width - retDither.start_x),size=1)*row_distribution[y], 0)[0].astype(int).tolist() # array in array
             else:
                 # totally random distribution for this row
-                row = np.round(np.random.dirichlet(np.ones(width),size=1)*4.0, 0)[0].astype(int).tolist()
+                row = np.round(np.random.dirichlet(np.ones(width),size=1)*row_distribution[y], 0)[0].astype(int).tolist()
 
             retDither.nums.append(row)
         
@@ -166,13 +169,15 @@ class ImageCompare(object):
         cv2.imwrite(f"{PATH}{testid}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
         return score
 
-    def triangle_test(self, kernel:DitherKernel, testname:str, serpentine:bool)->np.float64:
+    def triangle_test(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str)->np.float64:
         """Standard test for Triangular dither. Works off a .npy file of greyscale info.
         Uses original image to determine size, and the .npy file for the pixelated version
         of the image. Logs location of images it writes and returns score"""
 
         idd = str(uuid.uuid4())
-        os.mkdir(f"{PATH}{idd}")
+        if not os.path.exists(f"{PATH}{now}"):
+            os.makedirs(f"{PATH}{now}")
+        os.mkdir(f"{PATH}{now}/{idd}")
 
         self.sigma = 9.0 # higher blur for large-pixel work
 
@@ -188,22 +193,30 @@ class ImageCompare(object):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        tri = Righttriangularizer(None)
+        logging.info("Calling triangularizer")
+        tri = Righttriangularizer(f"{PATH}{now}")
 
+        logging.info("Open original image")
         image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
+
+        logging.info("dither() it")
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
 
         # FIXME: for Righttriangulator only
-        dithered_img = tri.pixelate(image, width, height, f"{PATH}{idd}/tri.png", dithered_tri, rectangular=True)
+        logging.info("Calling pixelate() WITH FILE SAVING")
+        dithered_img = tri.pixelate(image, width, height, f"{PATH}{now}/{idd}/tri.png", dithered_tri, rectangular=True, save_files=True)
 
         filename = f"{idd}/greyset_fs"
 
         image = image.convert("L")
         dithered_img = np.array(dithered_img.convert("L"))
 
+        logging.info("Calling run_test()")
         score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine)
+
+        logging.info("export to file")
         cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
 
         logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
@@ -298,5 +311,5 @@ if __name__ == '__main__':
     imc.greyscale = "data/07246.npy"
     imc.original_img = "out_img/07246.png"
 #    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
-    score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False)
+    score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False, now)
     logging.info(f"score = {score}")
