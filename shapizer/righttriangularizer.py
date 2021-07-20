@@ -4,9 +4,9 @@ from PIL import Image, ImageDraw
 import logging
 import numpy as np
 
-from dither_kernel import DitherKernel, DITHERS
-from ditherer import Ditherer
-from shapizer import Shapizer
+from ditherer.dither_kernel import DitherKernel, DITHERS
+from ditherer.ditherer import Ditherer
+from shapizer.shapizer import Shapizer
 
 
 PIXEL_HEIGHT = 10 # size of triangular pixels to draw in rectangular pixels

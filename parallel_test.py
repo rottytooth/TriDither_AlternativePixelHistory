@@ -4,12 +4,16 @@ import logging
 import datetime
 import os
 import multiprocessing
-from ml_model import DitherTesterTriangle
+
+from ditherer.ditherer import Ditherer
+from tester.triangle_compare import TriangleCompare
+from tester.simulated_annealing import DitherTester
+
 
 def get_score(dt, neighbor, return_dict, num):
-    logging.info(f"Getting score for neighbor #{i}")
+    logging.info(f"Getting score for neighbor #{num}")
     return_dict[num] = dt.get_score(neighbor)
-    logging.info(f"Completed work on neighbor #{i}")
+    logging.info(f"Completed work on neighbor #{num}")
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
@@ -25,18 +29,20 @@ if __name__ == '__main__':
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
-    dt = DitherTesterTriangle(nowstr)
+
+    im = TriangleCompare(Ditherer())
+    dt = DitherTester(im, nowstr)
 
     rows = 2
     cols = 5
     denom = 16
     
-    dt.im.greyscale = os.path.abspath("data/david_rt_big.npy")
-    dt.im.original_img = os.path.abspath("source_img/david_tri_big.jpg")
+    dt.im.greyscale = os.path.abspath("data/sanding_large_tri.npy")
+    dt.im.original_img = os.path.abspath("out_img/sanding_large_tri.png")
     
     initial_state = dt.im.random_dither(rows, cols, denom)
 
-    neighbors = dt.get_neighbors(initial_state, 160)
+    neighbors = dt.get_neighbors(initial_state, 4)
     processes = []
     manager = multiprocessing.Manager()
     return_dict = manager.dict()

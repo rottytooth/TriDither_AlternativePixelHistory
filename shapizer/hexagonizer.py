@@ -4,9 +4,9 @@ from PIL import Image, ImageDraw
 import logging
 import numpy as np
 
-from dither_kernel import DitherKernel, DITHERS
-from ditherer import Ditherer
-from shapizer import Shapizer
+from ditherer.dither_kernel import DitherKernel, DITHERS
+from ditherer.ditherer import Ditherer
+from .shapizer import Shapizer
 
 
 OFFSET = math.sqrt(3)/2 # relationship of triangle width to height

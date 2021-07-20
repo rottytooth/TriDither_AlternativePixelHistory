@@ -4,7 +4,7 @@ import cv2
 import json
 from PIL import Image
 
-from dither_kernel import DITHERS, DitherKernel
+from ditherer.dither_kernel import DITHERS, DitherKernel
 
 class Ditherer(object):
     def __init__(self, imgarray:np.ndarray=None):

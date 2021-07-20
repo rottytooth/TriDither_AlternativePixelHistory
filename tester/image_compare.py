@@ -12,10 +12,8 @@ import matplotlib.pyplot as plt
 import cv2
 from PIL import Image, ImageOps 
 
-from dither_kernel import DITHERS, DitherKernel
-from ditherer import Ditherer
-from triangularizer import Triangularizer
-from righttriangularizer import Righttriangularizer
+from ditherer.dither_kernel import DITHERS, DitherKernel
+from ditherer.ditherer import Ditherer
 
 PATH = 'out/'
 
@@ -29,6 +27,9 @@ class ImageScore(object):
 
 
 class ImageCompare(object):
+    """
+    Comparer of dithers, returns a score on visual likeness. To be overriden for different dither patterns
+    """
 
     def __init__(self, d:Ditherer, original_img:str=None, greyscale:str=None):
         self.sigma = 1.5
@@ -160,68 +161,6 @@ class ImageCompare(object):
         # print(f"\tssim_c: {score1.ssim_c}")
         return score1.ssim
 
-    def test_ditheralgo(self, kernel:DitherKernel, filename:str, testid:str, serpentine:bool, testname:str)->np.float64:
-        "Dithers and then scores result; writes out image dithered, returns score"
-        image = getImage(PATH + filename + ".png")
-        self.d = Ditherer(image)
-        dithered_img = self.d.dither(kernel, serpentine)
-        score = self.run_test(dithered_img, image, filename, testname, serpentine)
-        cv2.imwrite(f"{PATH}{testid}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
-        return score
-
-    def triangle_test(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str)->np.float64:
-        """Standard test for Triangular dither. Works off a .npy file of greyscale info.
-        Uses original image to determine size, and the .npy file for the pixelated version
-        of the image. Logs location of images it writes and returns score"""
-
-        idd = str(uuid.uuid4())
-        if not os.path.exists(f"{PATH}{now}"):
-            os.makedirs(f"{PATH}{now}")
-        os.mkdir(f"{PATH}{now}/{idd}")
-
-        self.sigma = 9.0 # higher blur for large-pixel work
-
-        logging.info(f"BEGIN {testname} TEST AT {datetime.datetime.now()}")
-        logging.info(f"UUID CODE is {idd}")
-        logging.info(f"OUTPUT DIR is {idd}")
-
-        np_load_old = np.load
-        # modify the default parameters of np.load
-        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
-        # call load_data with allow_pickle implicitly set to true
-        greyset = np.load(self.greyscale)
-        # restore np.load for future normal usage
-        np.load = np_load_old
-
-        logging.info("Calling triangularizer")
-        tri = Righttriangularizer(f"{PATH}{now}")
-
-        logging.info("Open original image")
-        image = Image.open(self.original_img).convert('LA').convert("RGBA")
-        width, height = image.size
-
-        logging.info("dither() it")
-        self.d = Ditherer(greyset)
-        dithered_tri = self.d.dither(kernel, serpentine)
-
-        # FIXME: for Righttriangulator only
-        logging.info("Calling pixelate() WITH FILE SAVING")
-        dithered_img = tri.pixelate(image, width, height, f"{PATH}{now}/{idd}/tri.png", dithered_tri, rectangular=True, save_files=True)
-
-        filename = f"{idd}/greyset_fs"
-
-        image = image.convert("L")
-        dithered_img = np.array(dithered_img.convert("L"))
-
-        logging.info("Calling run_test()")
-        score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine)
-
-        logging.info("export to file")
-        cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
-
-        logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
-
-        return score
 
     # NOTE: this needs some re-thinking in terms of source images -- more variety
     def full_test_ditheralgo(self, kernel:DitherKernel, testname:str)->np.float64:
@@ -255,14 +194,14 @@ class ImageCompare(object):
 
         return score
 
-def getImage(path:str) -> np.ndarray:
-    img = cv2.imread(path)
+    def getImage(self, path:str) -> np.ndarray:
+        img = cv2.imread(path)
 
-    if img is None:
-        raise Exception("Could not find image with path " + path)
+        if img is None:
+            raise Exception("Could not find image with path " + path)
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    return img
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return img
 
 
 def full_test_image(filename:str):
@@ -270,7 +209,7 @@ def full_test_image(filename:str):
     whether it is a good image to use to test new dithers"""
     logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
 
-    image = getImage(PATH + filename + ".png")
+    image = self.getImage(PATH + filename + ".png")
     d = Ditherer(image)
     imc = ImageCompare(d)
 
@@ -300,16 +239,10 @@ if __name__ == '__main__':
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
 
-#    logging.basicConfig(filename=f"logs/dithering_{idd}.log")
-#    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    # cv2.imwrite(f"{PATH}bricks.PNG", data.brick())
-    # random_dithers(2.2)
-
-
     d = Ditherer(None)
     imc = ImageCompare(d)
     imc.greyscale = "data/07246.npy"
     imc.original_img = "out_img/07246.png"
 #    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
-    score = imc.triangle_test(DitherKernel("FloydSteinberg"), "test_tri", False, now)
+    score = imc.imgtest(DitherKernel("FloydSteinberg"), "test_tri", False, now)
     logging.info(f"score = {score}")

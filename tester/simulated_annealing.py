@@ -6,15 +6,16 @@ import datetime
 import numpy as np
 import os
 
-from dither_kernel import DitherKernel
-from ditherer import Ditherer
-from image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
+from ditherer.dither_kernel import DitherKernel
+from ditherer.ditherer import Ditherer
+from .image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
 
 class DitherTester(object):
 
-    def __init__(self):
-        self.im = ImageCompare(Ditherer())
+    def __init__(self, im:ImageCompare, now):
+        self.im = im
         self.prev_attempts = []
+        self.now = now
 
     def simulated_annealing(self, rows:int, cols:int, denom:int, final_score:int=None)->DitherKernel:
         """Peforms simulated annealing to find a solution"""
@@ -64,10 +65,11 @@ class DitherTester(object):
 
     def get_score(self, state:DitherKernel):
         "Fitness function: assumes rect here, child classes should override this test"
-        scores = self.im.full_test_ditheralgo(state, "RANDTEST")
-        score_tot = np.array(scores).sum()
-        if (scores[-1] > 0.5): score_tot += 0.5 # extra points for last piece, since others cause "return early" behavior in image compare
-        return score_tot
+        scores = self.im.imgtest(state, "RANDTEST", False, self.now)
+        # score_tot = np.array(scores).sum()
+        # if (scores[-1] > 0.5): score_tot += 0.5 # extra points for last piece, since others cause "return early" behavior in image compare
+        # return score_tot
+        return scores
 
     def __get_random_sq(self, state:DitherKernel)->[int,int]:
         randy = random.randint(0, len(state.nums) - 1)
@@ -132,25 +134,24 @@ class DitherTester(object):
 
         return retset
 
-class DitherTesterTriangle(DitherTester):
-    def __init__(self, now):
-        self.now = now
-        super(DitherTesterTriangle, self).__init__()
+# class DitherTesterTriangle(DitherTester):
+#     def __init__(self, now):
+#         super(DitherTesterTriangle, self).__init__(now)
 
-    def get_score(self, state:DitherKernel):
-        return self.im.triangle_test(state, "test_tri", False, self.now)
+#     def get_score(self, state:DitherKernel):
+#         return self.im.triangle_test(state, "test_tri", False, self.now)
 
 
-def test_random_dithers(minv:np.float64):
-    """Test completely random dithers, with no ML. Used as control; how quickly this comes
-    to a passing score vs the machine learning model"""
-    score = 0.0
-    while (score < minv):
-        d = Ditherer(None)
-        imc = ImageCompare(d)
-        dither = imc.random_dither()
-        score = full_test_ditheralgo(dither, "RANDTEST")
-        logging.info(f"score sum = {score}")
+# def test_random_dithers(minv:np.float64):
+#     """Test completely random dithers, with no ML. Used as control; how quickly this comes
+#     to a passing score vs the machine learning model"""
+#     score = 0.0
+#     while (score < minv):
+#         d = Ditherer(None)
+#         imc = ImageCompare(d)
+#         dither = imc.random_dither()
+#         score = full_test_ditheralgo(dither, "RANDTEST")
+#         logging.info(f"score sum = {score}")
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
