@@ -1,0 +1,55 @@
+import logging
+import random
+import numpy as np
+
+from ditherer.dither_kernel import DitherKernel
+
+
+def complete_random_dither():
+    dithersize = random_dither_size()
+    return random_dither(dithersize['rows'], dithersize['cols'], dithersize['denom'])
+
+def random_dither_size():
+    # FIXME: there should be coherence between numer of cells and denom
+    return {
+        'rows' : random.randint(2,5),
+        'cols' : random.randint(3,12),
+        'denom' : random.randint(4,96)
+    }
+
+def random_dither(matrixrows:int=0, matrixcols:int=0, denom:int=0) -> DitherKernel:
+    """Generate a random random dither kernel within specified parameters"""
+    # for matrix we are returning
+    width = matrixcols if matrixcols > 0 else random.randint(3,8)
+    height = matrixrows if matrixrows > 0 else random.randint(2,3)
+
+    retDither = DitherKernel()
+    retDither.start_x = random.randint(1, max(1, width - 2)) # start x at least one before the end
+    retDither.start_y = 0 # always starts somewhere in the first row
+    retDither.nums = []
+    retDither.denom = denom if denom > 0 else random.randint(width, 50) # denominator of error diffusion
+
+    denom_count = retDither.denom # how much is left before we have 100% distribution of error
+
+    # distribute the total num value by row
+    row_distribution = np.round(np.random.dirichlet(np.ones(matrixrows),size=1)*retDither.denom, 0)[0].astype(int).tolist()
+
+    for y in range(0, height):
+        if y < retDither.start_y:
+            # append row with all 0s
+            row = [0] * width
+        elif y == retDither.start_y:
+            # distribute but leave first few cells for 0s
+            row = [0] * (retDither.start_x + 1)
+            row += np.round(np.random.dirichlet(np.ones(width - retDither.start_x),size=1)*row_distribution[y], 0)[0].astype(int).tolist() # array in array
+        else:
+            # totally random distribution for this row
+            row = np.round(np.random.dirichlet(np.ones(width),size=1)*row_distribution[y], 0)[0].astype(int).tolist()
+
+        retDither.nums.append(row)
+    
+    logging.info(f"start_x: {retDither.start_x}")
+    logging.info(f"start_y: {retDither.start_y}")
+    logging.info(f"denom: {retDither.denom}")
+    logging.info(f"nums: {retDither.nums}")
+    return retDither

@@ -8,6 +8,7 @@ import multiprocessing
 from ditherer.ditherer import Ditherer
 from tester.triangle_compare import TriangleCompare
 from tester.simulated_annealing import DitherTester
+from tester.test_utils import random_dither
 
 
 def get_score(dt, neighbor, return_dict, num):
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     dt.im.greyscale = os.path.abspath("data/sanding_large_tri.npy")
     dt.im.original_img = os.path.abspath("out_img/sanding_large_tri.png")
     
-    initial_state = dt.im.random_dither(rows, cols, denom)
+    initial_state = random_dither(rows, cols, denom)
 
     neighbors = dt.get_neighbors(initial_state, 4)
     processes = []

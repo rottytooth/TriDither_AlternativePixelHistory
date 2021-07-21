@@ -15,22 +15,26 @@ from shapizer.triangularizer import Triangularizer
 from shapizer.righttriangularizer import Righttriangularizer
 
 #FIXME: repeated all over the place
-PATH = 'out/'
+PATH = 'out'
 
 class TriangleCompare(ImageCompare):
 
     def __init__(self, d:Ditherer, original_img:str=None, greyscale:str=None):
         super(TriangleCompare, self).__init__(d, original_img, greyscale)
 
-    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None)->np.float64:
+    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str)->np.float64:
         """Standard test for Triangular dither. Works off a .npy file of greyscale info.
         Uses original image to determine size, and the .npy file for the pixelated version
         of the image. Logs location of images it writes and returns score"""
 
+        # make directory
         idd = str(uuid.uuid4())
-        if not os.path.exists(f"{PATH}{now}"):
-            os.makedirs(f"{PATH}{now}")
-        os.mkdir(f"{PATH}{now}/{idd}")
+        if not os.path.exists(f"{PATH}/{now}"):
+            os.makedirs(f"{PATH}/{now}")
+        if not os.path.exists(f"{PATH}/{now}/{iteration}"):
+            os.makedirs(f"{PATH}/{now}/{iteration}")
+        path = f"{PATH}/{now}/{iteration}/{idd}"
+        os.mkdir(path)
 
         self.sigma = 9.0 # higher blur for large-pixel work
 
@@ -58,7 +62,7 @@ class TriangleCompare(ImageCompare):
         dithered_tri = self.d.dither(kernel, serpentine)
 
         logging.info("Calling pixelate() WITH FILE SAVING")
-        dithered_img = tri.pixelate(image, width, height, f"{PATH}{now}/{idd}/tri.png", dithered_tri, save_files=True)
+        dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
         filename = f"{idd}/greyset_fs"
 

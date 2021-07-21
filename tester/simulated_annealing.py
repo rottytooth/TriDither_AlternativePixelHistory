@@ -89,13 +89,13 @@ class DitherTester(object):
 
         return randx, randy
 
-    def compareDithers(self, d1:DitherKernel, d2:DitherKernel) -> bool:
-        d1num = np.array(d1.nums)
-        d2num = np.array(d2.nums)
+    # def compareDithers(self, d1:DitherKernel, d2:DitherKernel) -> bool:
+    #     d1num = np.array(d1.nums)
+    #     d2num = np.array(d2.nums)
 
-        if np.array_equal(d1num, d2num) and d1.start_x == d2.start_x and d1.start_y == d2.start_y and d1.denom == d2.denom:
-            return True
-        return False
+    #     if np.array_equal(d1num, d2num) and d1.start_x == d2.start_x and d1.start_y == d2.start_y and d1.denom == d2.denom:
+    #         return True
+    #     return False
 
     def get_neighbors(self, state:DitherKernel, setgoal:int=None):
         """Build a set of neighbors with variations of your current kernel"""
@@ -134,24 +134,7 @@ class DitherTester(object):
 
         return retset
 
-# class DitherTesterTriangle(DitherTester):
-#     def __init__(self, now):
-#         super(DitherTesterTriangle, self).__init__(now)
 
-#     def get_score(self, state:DitherKernel):
-#         return self.im.triangle_test(state, "test_tri", False, self.now)
-
-
-# def test_random_dithers(minv:np.float64):
-#     """Test completely random dithers, with no ML. Used as control; how quickly this comes
-#     to a passing score vs the machine learning model"""
-#     score = 0.0
-#     while (score < minv):
-#         d = Ditherer(None)
-#         imc = ImageCompare(d)
-#         dither = imc.random_dither()
-#         score = full_test_ditheralgo(dither, "RANDTEST")
-#         logging.info(f"score sum = {score}")
 
 if __name__ == '__main__':
     logFormatter = logging.Formatter("%(asctime)s  %(message)s")
@@ -167,7 +150,7 @@ if __name__ == '__main__':
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
-    dt = DitherTesterTriangle(nowstr)
+    dt = DitherTester(nowstr)
     
     dt.im.greyscale = os.path.abspath("data/david_rt_big.npy")
     dt.im.original_img = os.path.abspath("source_img/david_tri_big.jpg")
