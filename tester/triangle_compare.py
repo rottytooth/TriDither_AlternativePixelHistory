@@ -22,7 +22,7 @@ class TriangleCompare(ImageCompare):
     def __init__(self, d:Ditherer, original_img:str=None, greyscale:str=None):
         super(TriangleCompare, self).__init__(d, original_img, greyscale)
 
-    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str)->np.float64:
+    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str)->[np.float64, str]:
         """Standard test for Triangular dither. Works off a .npy file of greyscale info.
         Uses original image to determine size, and the .npy file for the pixelated version
         of the image. Logs location of images it writes and returns score"""
@@ -30,17 +30,22 @@ class TriangleCompare(ImageCompare):
         # make directory
         idd = str(uuid.uuid4())
         if not os.path.exists(f"{PATH}/{now}"):
-            os.makedirs(f"{PATH}/{now}")
+            try:
+                os.makedirs(f"{PATH}/{now}")
+            except:
+                pass
         if not os.path.exists(f"{PATH}/{now}/{iteration}"):
-            os.makedirs(f"{PATH}/{now}/{iteration}")
+            try:
+                os.makedirs(f"{PATH}/{now}/{iteration}")
+            except:
+                pass # sometimes another thread will have created the folder after testing
         path = f"{PATH}/{now}/{iteration}/{idd}"
         os.mkdir(path)
 
         self.sigma = 9.0 # higher blur for large-pixel work
 
-        logging.info(f"BEGIN {testname} TEST AT {datetime.datetime.now()}")
-        logging.info(f"UUID CODE is {idd}")
-        logging.info(f"OUTPUT DIR is {idd}")
+        logging.info(f"BEGIN {testname} TEST FOR {idd} AT {datetime.datetime.now()}")
+        logging.info(f"kernel for {idd} : {kernel.nums}, /{kernel.denom}")
 
         np_load_old = np.load
         # modify the default parameters of np.load
@@ -50,18 +55,14 @@ class TriangleCompare(ImageCompare):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        logging.info("Calling triangularizer")
         tri = Triangularizer(f"{PATH}{now}")
-
-        logging.info("Open original image")
         image = Image.open(self.original_img).convert('LA').convert("RGBA")
         width, height = image.size
 
-        logging.info("dither() it")
         self.d = Ditherer(greyset)
         dithered_tri = self.d.dither(kernel, serpentine)
 
-        logging.info("Calling pixelate() WITH FILE SAVING")
+#        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
         dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
         filename = f"{idd}/greyset_fs"
@@ -69,12 +70,11 @@ class TriangleCompare(ImageCompare):
         image = image.convert("L")
         dithered_img = np.array(dithered_img.convert("L"))
 
-        logging.info("Calling run_test()")
-        score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine)
+        score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine, idd)
 
-        logging.info("export to file")
+#        logging.info("export to file")
         cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
 
-        logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
+        # logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
 
-        return score
+        return score, idd

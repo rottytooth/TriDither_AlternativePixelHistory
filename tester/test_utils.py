@@ -12,10 +12,20 @@ def complete_random_dither():
 def random_dither_size():
     # FIXME: there should be coherence between numer of cells and denom
     return {
-        'rows' : random.randint(2,5),
-        'cols' : random.randint(3,12),
-        'denom' : random.randint(4,96)
+        'rows' : random.randint(2,4),
+        'cols' : random.randint(3,8),
+        'denom' : random.randint(4,48)
     }
+
+def arr_to_kernel(arr:list, denom:int)->DitherKernel:
+    retDith = DitherKernel()
+    retDith.start_x = 1
+    retDith.start_y = 0
+    firstrow = [0,0]
+    firstrow.append(arr[0])
+    retDith.nums = [firstrow,arr[1:]]
+    retDith.denom = denom
+    return retDith 
 
 def random_dither(matrixrows:int=0, matrixcols:int=0, denom:int=0) -> DitherKernel:
     """Generate a random random dither kernel within specified parameters"""
@@ -32,7 +42,12 @@ def random_dither(matrixrows:int=0, matrixcols:int=0, denom:int=0) -> DitherKern
     denom_count = retDither.denom # how much is left before we have 100% distribution of error
 
     # distribute the total num value by row
-    row_distribution = np.round(np.random.dirichlet(np.ones(matrixrows),size=1)*retDither.denom, 0)[0].astype(int).tolist()
+    row_distribution = [0]
+
+    rowtries = 0
+    while 0 in row_distribution and rowtries < 8:
+        row_distribution = np.round(np.random.dirichlet(np.ones(matrixrows),size=1)*retDither.denom, 0)[0].astype(int).tolist()
+        rowtries += 1
 
     for y in range(0, height):
         if y < retDither.start_y:
@@ -41,7 +56,7 @@ def random_dither(matrixrows:int=0, matrixcols:int=0, denom:int=0) -> DitherKern
         elif y == retDither.start_y:
             # distribute but leave first few cells for 0s
             row = [0] * (retDither.start_x + 1)
-            row += np.round(np.random.dirichlet(np.ones(width - retDither.start_x),size=1)*row_distribution[y], 0)[0].astype(int).tolist() # array in array
+            row += np.round(np.random.dirichlet(np.ones(width - retDither.start_x - 1),size=1)*row_distribution[y], 0)[0].astype(int).tolist() # array in array
         else:
             # totally random distribution for this row
             row = np.round(np.random.dirichlet(np.ones(width),size=1)*row_distribution[y], 0)[0].astype(int).tolist()
@@ -52,4 +67,5 @@ def random_dither(matrixrows:int=0, matrixcols:int=0, denom:int=0) -> DitherKern
     logging.info(f"start_y: {retDither.start_y}")
     logging.info(f"denom: {retDither.denom}")
     logging.info(f"nums: {retDither.nums}")
+    
     return retDither

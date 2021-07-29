@@ -116,11 +116,11 @@ class ImageCompare(object):
         self.run_test(rnd, image, filename, "Random", False)
 
         
-    def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool)->np.float64:
+    def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool, idd:uuid)->np.float64:
         "Just calls scoreImage, and logs result, returns score"
         score1 = self.scoreImage(image, fs, filename + dithername + ('serpentine' if serpentine else 'ltor'))
         logging.info(f"{dithername} for {filename}, {'serpentine' if serpentine else 'left to right'}:")
-        logging.info(f"\tssim: {score1.ssim}")
+        logging.info(f"\tssim for {idd}: {score1.ssim}")
         # print(f"\tssim_c: {score1.ssim_c}")
         return score1.ssim
 

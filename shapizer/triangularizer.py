@@ -93,13 +93,12 @@ class Triangularizer(Shapizer):
             if outlocation is None:
                 outlocation = self.default_outpath
             im.save(outlocation)
-            logging.info(f"Saved to path {outlocation}")
+            logging.debug(f"Saved to path {outlocation}")
 
             if greyscale_list is None:
                 # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
                 np.save(self.greyoutlocation, greyset)
                 logging.info(f"Saved greyset to {self.greylocation}")
-
 
         return im
     

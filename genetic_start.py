@@ -8,6 +8,7 @@ import multiprocessing
 from ditherer.ditherer import Ditherer
 from tester.triangle_compare import TriangleCompare
 from tester.genetic_algorithm import GeneticAlgorithm
+from tester.exhaustive_run import Exhaustive
 
 
 
@@ -27,8 +28,10 @@ if __name__ == '__main__':
     rootLogger.addHandler(consoleHandler)
 
     im = TriangleCompare(Ditherer())
-    im.greyscale = os.path.abspath("data/sanding_large_tri.npy")
-    im.original_img = os.path.abspath("out_img/sanding_large_tri.png")
+    im.greyscale = os.path.abspath("data/Amanda_tri.npy")
+    im.original_img = os.path.abspath("out_img/Amanda_tri.png")
     
     dt = GeneticAlgorithm(im, nowstr)
+#    dt = Exhaustive(im, nowstr, 2, 3, 1, 0, 16)
+    # dt.test_problem()
     dt.run()

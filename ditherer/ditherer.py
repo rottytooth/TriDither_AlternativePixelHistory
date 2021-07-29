@@ -22,16 +22,16 @@ class Ditherer(object):
         retarray = self.imgarray.copy()
 
         if percent < 100:
-            retarray = self.change_contrast(retarray, percent)
+            self.change_contrast(retarray, percent)
 
         for y in range(0, len(self.imgarray)):
 
             if (serpentine == False or y % 2 == 0): # direction
                 for x in range(0, len(self.imgarray[y])):
-                    retarray = self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
+                    self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
             else:
                 for x in range(len(self.imgarray[y]) -1, -1, -1):
-                    retarray = self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
+                    self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
 
         return retarray
 
@@ -71,6 +71,9 @@ class Ditherer(object):
 
                     retarray[y_use][x_use] = self.clamp(retarray[y_use][x_use] - diff * kernel.nums[j][i] / kernel.denom, 0, 255)
 
+        if (retarray[y][x] != 255 and retarray[y][x] != 0):
+            # this is an error
+            raise Exception("Pixel value is out of range") 
         return retarray
 
     def clamp(self, val, minv, maxv):
