@@ -12,8 +12,6 @@ from .shapizer import Shapizer
 OFFSET = math.sqrt(3)/2 # relationship of triangle width to height
 PIXEL_HEIGHT = 10 # size of triangular pixels to draw in rectangular pixels
 
-SAVE_IMG_FILES = True
-
 
 class Triangularizer(Shapizer):
 
@@ -39,13 +37,16 @@ class Triangularizer(Shapizer):
 
         return trianglepoints
         
-    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, greyoutlocation=None, save_files=False)->Image.Image:
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, greyoutlocation=None, rectangular=False, save_files=False)->Image.Image:
         '''
         For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
 
         The assumption is that a greyscale_list is a dithered version of that list (everything at black or white) and so if one is provided, we save to the outdithered location.
         '''
         triwidth = (self.pixel_height) / OFFSET
+
+        if greyoutlocation == None:
+            greyoutlocation = self.greylocation
 
         greyset = [] # all the pixel shades of grey that we will dither
 
@@ -90,15 +91,7 @@ class Triangularizer(Shapizer):
                 greyset[row].append(color)
 
         if save_files:
-            if outlocation is None:
-                outlocation = self.default_outpath
-            im.save(outlocation)
-            logging.debug(f"Saved to path {outlocation}")
-
-            if greyscale_list is None:
-                # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
-                np.save(self.greyoutlocation, greyset)
-                logging.info(f"Saved greyset to {self.greylocation}")
+            super().save(outlocation, im, greyscale_list, greyset, greyoutlocation)
 
         return im
     

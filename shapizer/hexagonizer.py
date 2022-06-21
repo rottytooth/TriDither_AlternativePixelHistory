@@ -14,54 +14,28 @@ PIXEL_HEIGHT = 20 # size of hexagonal pixels to draw in rectangular pixels
 
 SIDE_TO_HEIGHT = 1.732051
 
-SAVE_IMG_FILES = True
-
-
-# following Globals should ONLY be used OUTSIDE of Triangularizer object
-# and used to set parameters for Triangularizer
-
-# original source image
-INPUT_IMG = "source_img/david_tiny.jpg"
-
-# the pixelated, hexagonal version will go here
-OUT_TRI_FINAL = "out_img/david_hex_tiny.png"
-
-# a numpy array with greyscale data for pixelated version
-# this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
-GREY_LOCATION = "data/david_hex_tiny.npy"
-
 
 class Hexagonizer(Shapizer):
 
     def __init__(self, default_outpath:str=None):
         self.default_outpath = default_outpath
-        self.greylocation = GREY_LOCATION
+        self.greylocation = None
         self.pixel_height = PIXEL_HEIGHT
 
     # FIXME: should we be cropping to hex? If so, this is where we do it
-
+    # (based on Triangularizer)
     # def _get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
-    #     '''Returns the maximal vertical triangle for the available rectangle
-    #     '''
-
-    #     # widest possible triangle width that will fit in the rectangle
-    #     # this is either the rect width, or the rect height divided by offset,
-    #     # as triangle width * offset == triangle height
-    #     triwidth = min(rwidth, round(rheight / OFFSET))
-
-    #     if (pixel_unitsize): # if we need to crop in terms of a unit size
-    #         triwidth = math.floor(triwidth / self.pixel_height) * self.pixel_height
-    #     trianglepoints = [(rwidth / 2 - triwidth / 2, triwidth * OFFSET), (rwidth / 2 + triwidth / 2, triwidth * OFFSET), (rwidth / 2, 0)]
-
-    #     return trianglepoints
         
-    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None)->Image.Image:
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, greyoutlocation=None, rectangular=False, save_files=False)->Image.Image:
         '''
-        For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
+        For an entire image, make the pixels hexagonal, working off of a greyscale list (numpy array) if provided
 
         The assumption is that a greyscale_list is a dithered version of that list (everything at black or white) and so if one is provided, we save to the outdithered location.
         '''
         sidelen = self.pixel_height / SIDE_TO_HEIGHT
+
+        if greyoutlocation == None:
+            greyoutlocation = self.greylocation
 
         greyset = [] # all the pixel shades of grey that we will dither
 
@@ -105,41 +79,8 @@ class Hexagonizer(Shapizer):
                 draw.polygon(hexagon, fill=(int(color),int(color),int(color),255))
                 greyset[row].append(color)
 
-        if SAVE_IMG_FILES:
-            if outlocation is None:
-                outlocation = self.default_outpath
-            im.save(outlocation)
-            logging.info(f"Saved to path {outlocation}")
-
-            if greyscale_list is None:
-                # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
-                #FIXME: it might make sense for greylocation to be overrideable like outlocation
-                np.save(self.greylocation, greyset)
-                logging.info(f"Saved greyset to {self.greylocation}")
-
+        if save_files:
+            super().save(outlocation, im, greyscale_list, greyset, greyoutlocation)
 
         return im
     
-
-if __name__ == '__main__':
-    logFormatter = logging.Formatter("%(asctime)s  %(message)s")
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.INFO)
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
-
-    tri = Hexagonizer(OUT_TRI_FINAL)
-
-    # read image as RGB, convert to greyscale, and add alpha (transparency)
-    im = Image.open(INPUT_IMG).convert('LA').convert("RGBA")
-
-    iwidth, iheight = im.size
-
-    # this creates the hexagon-pixelled version
-    logging.info(f"Begin pixelation")
-    iim = tri.pixelate(im, iwidth, iheight)
-    logging.info("Complete pixelation")
-
-
-

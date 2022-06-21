@@ -6,21 +6,7 @@ from PIL import Image, ImageDraw
 import logging
 import numpy as np
 
-# import triangularizer as tri
-# import righttriangularizer as rit
-
-class Shape(Enum):
-    TRIANGLE = auto()
-    RIGHT_TRIANGLE = auto()
-
 class Shapizer(object):
-
-    # @staticmethod
-    # def Get(shape:Shape, default_outpath:str=None):
-    #     if (shape == Shape.TRIANGLE):
-    #         return tri.Triangularizer(default_outpath)
-    #     if (shape == Shape.RIGHT_TRIANGLE):
-    #         return rit.Righttriangularizer(default_outpath)
 
     def crop_to_shape(self, im:Image.Image, cropshape:list, invisible_to_black:bool=False)->Image.Image:
         '''Take a rectangular image and convert to the dimensions of the crop vertices provided (from get_vertices_for_max_shape)
@@ -104,3 +90,15 @@ class Shapizer(object):
         #     print(greyset[i])
 
         return greyset
+
+    def save(self, outlocation, im, greyscale_list, greyset, greylocation):
+        if outlocation is None:
+            outlocation = self.default_outpath
+        im.save(outlocation)
+        logging.info(f"Saved to path {outlocation}")
+
+        if greyscale_list is None:
+            # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
+            np.save(greylocation, greyset)
+            logging.info(f"Saved greyset to {greylocation}")
+

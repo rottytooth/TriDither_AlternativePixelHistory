@@ -16,7 +16,7 @@ GEN_SIZE = 40
 
 class Exhaustive(object):
 
-    def __init__(self, im:ImageCompare, now:str, rows:int, cols:int, start_x:int=1, start_y:int=0, denom:int=16):
+    def __init__(self, im:ImageCompare, now:str, rows:int, cols:int, shape:str, start_x:int=1, start_y:int=0, denom:int=16, down_ker:DitherKernel=None):
         self.im = im
         self.now = now
         self.denom = denom
@@ -25,6 +25,8 @@ class Exhaustive(object):
         self.start_x = start_x
         self.start_y = start_y
         self.population = []
+        self.down_ker = down_ker
+        self.shape = shape
 
     def _sum(self, arr): 
         sum=0
@@ -44,20 +46,20 @@ class Exhaustive(object):
                 t.append(i)
                 self.combine(target, size, t[:], retlist)
 
-    def run(self):
+    def run(self, shape):
         initial_score = 0.0
         generations = 0
 
         retlist = []
-        self.combine(self.denom,4,[],retlist)
+        self.combine(self.denom,5,[],retlist)
         print(retlist)
 
         self._score_population(retlist)       
 
     @staticmethod
-    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration):
+    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, down_ker:DitherKernel=None):
         logging.info(f"Getting score for #{num}")
-        return_dict[num] = im.imgtest(arr_to_kernel(member, denom), "exhaustive", False, now, iteration)
+        return_dict[num] = im.imgtest(arr_to_kernel(member, denom), "exhaustive", False, now, iteration, shape, down_ker=down_ker)
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self, population):
@@ -71,7 +73,7 @@ class Exhaustive(object):
             gencount += 1
             logging.info(f"Beginning generation {gencount}")
             for i in arrsize:
-                processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(population[i], return_dict, i, self.im, self.denom, self.now, gencount)))
+                processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(population[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.down_ker)))
             for i in arrsize:
                 processes[i].start()
             for i in arrsize:

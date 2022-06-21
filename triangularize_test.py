@@ -2,20 +2,24 @@ from PIL import Image, ImageOps
 import numpy as np
 import cv2
 
-from dither_kernel import DITHERS, DitherKernel
-from ditherer import Ditherer
-from triangularizer import Triangularizer
-from righttriangularizer import Righttriangularizer
-from hexagonizer import Hexagonizer
+from ditherer.dither_kernel import DITHERS, DitherKernel
+from ditherer.ditherer import Ditherer
+from shapizer.triangularizer import Triangularizer
+from shapizer.righttriangularizer import Righttriangularizer
+from shapizer.hexagonizer import Hexagonizer
+
+
+# NOTE: This is for generating triangular-pixeled gradients. Should be an option in the main flow of the program
+
 
 # used only to correctly size the final image
-ORIGINAL_IMAGE = "source_img/david_tiny.jpg"
+ORIGINAL_IMAGE = "source_img/david.jpg"
 
-GREYSET = "data/david_hex_tiny.npy"
+GREYSET = "data/david_hex.npy"
 
-OUTPATH = f"out_img/david_tiny_hex_%PERCENT%.png"
+OUTPATH = f"out_img/david_hex_Atk_%PERCENT%.png"
 
-DITHER = DitherKernel("StephensonArce")
+DITHER = DitherKernel("Atkinson")
 #DITHER = DitherKernel("FloydSteinberg")
 #DITHER = DitherKernel("FSTriTwo")
 

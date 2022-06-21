@@ -10,10 +10,13 @@ from skimage.metrics import structural_similarity as ssim
 from skimage import filters, data, exposure
 import matplotlib.pyplot as plt
 import cv2
+from numpy import asarray
 from PIL import Image, ImageOps 
+from typing import List
 
 from ditherer.dither_kernel import DITHERS, DitherKernel
 from ditherer.ditherer import Ditherer
+from shapizer.shapizer_factory import ShapizerFactory
 
 PATH = 'out/'
 
@@ -53,17 +56,21 @@ class ImageCompare(object):
         # the two images are
         return err
 
-    def scoreImage(self, original:np.ndarray, compare:np.ndarray, name:str) -> ImageScore:
+    def scoreImageByLoc(self, original_path, compare_path, name):
+        "Accepts images by path instead of as dataframes"
+        original = asarray(Image.open(original_path).convert('L'))
+        compare = asarray(Image.open(compare_path).convert('L'))
+        return self.scoreImage(original, compare, name)
 
-        # cv2.imwrite(f"{PATH}{name}_original_nb.PNG", original)
-        # cv2.imwrite(f"{PATH}{name}_compare_nb.PNG", compare)
+    def scoreImage(self, original:np.ndarray, compare:np.ndarray, name:str=None) -> ImageScore:
+        "original = original for comparison. usually this is the pixelated, not original image"
 
         blurred_original = filters.gaussian(original, sigma=self.sigma, preserve_range=True)
         blurred_compare = filters.gaussian(compare, sigma=self.sigma, preserve_range=True)
 
-        # uncomment to write blurred images to files
-        cv2.imwrite(f"{PATH}{name}_original.PNG", blurred_original)
-        cv2.imwrite(f"{PATH}{name}_compare.PNG", blurred_compare)
+        if name != None:
+            cv2.imwrite(f"{PATH}{name}_original_blur.PNG", blurred_original)
+            cv2.imwrite(f"{PATH}{name}_compare_blur.PNG", blurred_compare)
 
         score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare))
 
@@ -79,9 +86,6 @@ class ImageCompare(object):
 #        blurred_c_original = filters.gaussian(original_c, sigma=self.sigma, preserve_range=True)
 #        blurred_c_compare = filters.gaussian(compare_c, sigma=self.sigma, preserve_range=True)
 
-        # uncomment to write blurred images to files
-#        cv2.imwrite(f"{PATH}{name}_original_cont.PNG", blurred_c_original)
-#        cv2.imwrite(f"{PATH}{name}_compare_cont.PNG", blurred_c_compare)
 
         # test with reset contrast
 #        score.ssim_c = ssim(blurred_c_original, blurred_compare)
@@ -114,6 +118,90 @@ class ImageCompare(object):
         'Test against randomized pixels'
         rnd = self.random_img(image)
         self.run_test(rnd, image, filename, "Random", False)
+
+    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str, shape:str, down_ker:DitherKernel=None):
+        if (shape == 'square'):
+            return self.imgtest_square(kernel, testname, serpentine, now, iteration, shape, down_ker)
+        else:
+            return self.imgtest_other(kernel, testname, serpentine, now, iteration, shape, down_ker)
+
+
+    def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None):
+        "Dithers and then scores result; writes out image dithered, returns score"
+        image = self.getImage(PATH + self.original_img)
+        self.d = Ditherer(image)
+        dithered_img = self.d.dither(kernel, serpentine)
+        score = self.run_test(dithered_img, image, self.original_img, testname, serpentine)
+
+        idd = str(uuid.uuid4())
+        filename = f"{idd}/greyset_fs"
+
+        cv2.imwrite(f"{PATH}{testname}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+        return score, ""
+
+
+    def imgtest_other(self, kernel:DitherKernel, testname:str, serpentine:bool, dirname:str, iteration:str, shape:str, down_ker:DitherKernel=None):
+        """Standard test for non-square dither. Works off a .npy file of greyscale info.
+        Uses original image to determine size, and the .npy file for the pixelated version
+        of the image. Logs location of images it writes and returns score"""
+
+        # make directory
+        idd = str(uuid.uuid4())
+        if not os.path.exists(f"{PATH}/{dirname}"):
+            try:
+                os.makedirs(f"{PATH}/{dirname}")
+            except:
+                pass
+        if not os.path.exists(f"{PATH}/{dirname}/{iteration}"):
+            try:
+                os.makedirs(f"{PATH}/{dirname}/{iteration}")
+            except:
+                pass # sometimes another thread will have created the folder after testing
+        path = f"{PATH}/{dirname}/{iteration}/{idd}"
+        os.mkdir(path)
+
+        self.sigma = 9.0 # higher blur for large-pixel work
+
+        logging.info(f"BEGIN {testname} TEST FOR {idd} AT {datetime.datetime.now()}")
+        logging.info(f"kernel for {idd} : {kernel.nums}, /{kernel.denom}")
+
+        np_load_old = np.load
+        # modify the default parameters of np.load
+        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+        # call load_data with allow_pickle implicitly set to true
+        greyset = np.load(self.greyscale)
+        # restore np.load for future normal usage
+        np.load = np_load_old
+
+        shapizer = ShapizerFactory.GetShapizer(shape, args=f"{PATH}{dirname}")
+
+        image = Image.open(self.original_img).convert('LA').convert("RGBA")
+        width, height = image.size
+
+        if down_ker is None:
+            down_ker = kernel
+
+        self.d = Ditherer(greyset)
+        dithered_tri = self.d.dither(kernel, down_ker, serpentine)
+
+#        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
+        # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
+
+        dithered_img = shapizer.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True, rectangular=True)
+
+        filename = f"{idd}/greyset_fs"
+
+        image = image.convert("L")
+        dithered_img = np.array(dithered_img.convert("L"))
+
+        score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine, idd)
+
+#        logging.info("export to file")
+        cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+
+        # logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
+
+        return score, idd        
 
         
     def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool, idd:uuid)->np.float64:
@@ -207,5 +295,5 @@ if __name__ == '__main__':
     imc.greyscale = "data/07246.npy"
     imc.original_img = "out_img/07246.png"
 #    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
-    score = imc.imgtest(DitherKernel("FloydSteinberg"), "test_tri", False, now)
+    score, sttr = imc.imgtest(DitherKernel("FloydSteinberg"), "test_tri", False, now)
     logging.info(f"score = {score}")

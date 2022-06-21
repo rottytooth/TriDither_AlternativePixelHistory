@@ -7,12 +7,14 @@ A collection of dithering programs
 - argument for serpentine dither
 - returns new set of values (each black or white, 0 or 255), does not write out image
 - constructor takes the image or array we're working on
+- has no concept of pixel shape
 
 # Shapizer: pixelates an image according to the given shape. Optionally shapes the entire image to that shape as well (for some shapes, that always happens)
-- saves a numpy array of the pixelated colors, so the image doesn't need to be reread each time we are to dither. The 
+- saves a numpy array of the pixelated colors, so the image doesn't need to be reread each time we are to dither
 Shapizers:
     - Triangularizer
     - Righttriangularizer
+    - Hexagonizer
 
 # Triangularize_test: A script to dither a triangular shape that has already been "shapized". Can be set for triangle or right-triangle
 
@@ -26,6 +28,6 @@ Essentially, it's like running the ditherer except it writes out the image
 
 Called directly, scores an image using Structural Similarity Index
 
-- to do: add contrast controls so Atkinson dither and others that are good for middle range can be found
+- to do: add contrast controls so Atkinson dither, and others that are good for middle range, will test better
 
 

@@ -11,28 +11,12 @@ from shapizer.shapizer import Shapizer
 
 PIXEL_HEIGHT = 10 # size of triangular pixels to draw in rectangular pixels
 
-SAVE_IMG_FILES = True
-
-
-# following Globals should ONLY be used OUTSIDE of Triangularizer object
-# and used to set parameters for Triangularizer
-
-# original source image
-INPUT_IMG = "source_img/david_tri_big.jpg"
-
-# the pixelated, triangular version will go here
-OUT_TRI_FINAL = "out_img/david_rt_big.png"
-
-# a numpy array with greyscale data for pixelated version
-# this is used because pixelating the original image and averaging the color for each pixel is expensive. The Ditherer will use this to calculate dithered version of the image
-GREY_LOCATION = "data/david_rt_big.npy"
-
 
 class Righttriangularizer(Shapizer):
 
     def __init__(self, default_outpath:str=None):
         self.default_outpath = default_outpath
-        self.greylocation = GREY_LOCATION
+        self.greylocation = None
         self.pixel_height = PIXEL_HEIGHT
 
     def _get_vertices_for_max_shape(self, rwidth:int, rheight:int, pixel_unitsize:bool = False)->list:
@@ -54,14 +38,17 @@ class Righttriangularizer(Shapizer):
         newwidth = math.floor(rwidth / self.pixel_height) * self.pixel_height
         newheight = math.floor(rheight / self.pixel_height) * self.pixel_height
         return [(0, 0),(newwidth, 0), (newwidth, newheight), (0, newheight)]
-
         
-    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, rectangular=False, save_files=SAVE_IMG_FILES)->Image.Image:
+    def pixelate(self, im:Image.Image, width:int, height:int, outlocation:str=None, greyscale_list=None, greyoutlocation=None, rectangular=False, save_files=False)->Image.Image:
         '''
         For an entire image, make the pixels triangular, working off of a greyscale list (numpy array) if provided
 
         The assumption is that a greyscale_list is a dithered version of that list (everything at black or white) and so if one is provided, we save to the outdithered location.
         '''
+
+        if greyoutlocation == None:
+            greyoutlocation = self.greylocation
+
         triwidth = self.pixel_height
 
         greyset = [] # all the pixel shades of grey that we will dither
@@ -72,7 +59,11 @@ class Righttriangularizer(Shapizer):
 
         draw = ImageDraw.Draw(im)
 
-        for row in range(math.floor(min(height, width) / self.pixel_height)):
+        rows_to_draw = math.floor(height / self.pixel_height)
+        if not rectangular: # if we are going triangular, we need square aspect ratio
+            rows_to_draw = math.floor(min(height, width) / self.pixel_height)
+
+        for row in range(rows_to_draw):
             greyset.append([])
             logging.debug(f"beginning row {row}")
 
@@ -113,45 +104,7 @@ class Righttriangularizer(Shapizer):
                 greyset[row].append(color)
 
         if save_files:
-            if outlocation is None:
-                outlocation = self.default_outpath
-            im.save(outlocation)
-            logging.info(f"Saved to path {outlocation}")
-
-            if greyscale_list is None:
-                # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
-                #FIXME: it might make sense for greylocation to be overrideable like outlocation
-                np.save(self.greylocation, greyset)
-                logging.info(f"Saved greyset to {self.greylocation}")
-
+            super().save(outlocation, im, greyscale_list, greyset, greyoutlocation)
 
         return im
     
-
-if __name__ == '__main__':
-    logFormatter = logging.Formatter("%(asctime)s  %(message)s")
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.INFO)
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
-
-    tri = Righttriangularizer(OUT_TRI_FINAL)
-
-    # read image as RGB, convert to greyscale, and add alpha (transparency)
-    im = Image.open(INPUT_IMG).convert('LA').convert("RGBA")
-
-    iwidth, iheight = im.size
-
-    # this creates the triangular-pixelled version
-    iim = tri.pixelate(im, iwidth, iheight, rectangular=True)
-
-
-
-    # Take im data returned from Triangularizer and dither it:
-    # ditherer = Ditherer(greyset)
-    # dith_greys = ditherer.dither(DitherKernel("FloydSteinberg"), False)
-
-    # im = im.getdata()
-    # tri.pixelate(im, iwidth, iheight, dith_greys)
-

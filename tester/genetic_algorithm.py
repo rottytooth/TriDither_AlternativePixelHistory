@@ -53,18 +53,19 @@ class GeneticAlgorithm(object):
         #set up initial population
         for i in range(self.population_size):
             population.append(complete_random_dither())
-        toplist = self.report_generation(population)
+        toplist = self.report_generation(population, [])
 
         while self.score < target_score and self.generations < GENERATION_MAX:
             self.generations += 1
             population = self.generate_variations(population, toplist)
-            toplist = self.report_generation(population)
+            toplist = self.report_generation(population, toplist)
 
-    def report_generation(self, population):
+    def report_generation(self, population, toplist):
 
         logging.info(f"GENERATION {self.generations}")
 
         scores = self._score_population(population, self.generations)
+        scores.append(toplist)
         sorted_scores = {k: v for k, v in sorted(scores.items(), key=lambda item: item[1])}
 
         # worst of population
@@ -77,10 +78,10 @@ class GeneticAlgorithm(object):
 
         # best of population
         top = []
-        top.append(self._get_mut_res(sorted_scores.popitem(), population, 1))
-        top.append(self._get_mut_res(sorted_scores.popitem(), population, 1))
-        top.append(self._get_mut_res(sorted_scores.popitem(), population, 1))
-        top.append(self._get_mut_res(sorted_scores.popitem(), population, 1))
+        top.append(self._get_mut_res(sorted_scores.popitem(), population, self.generations))
+        top.append(self._get_mut_res(sorted_scores.popitem(), population, self.generations))
+        top.append(self._get_mut_res(sorted_scores.popitem(), population, self.generations))
+        top.append(self._get_mut_res(sorted_scores.popitem(), population, self.generations))
 
         logging.info(f"BEST: {top[0]}")
         logging.info(f"SECOND BEST: {top[1]}")
@@ -95,7 +96,7 @@ class GeneticAlgorithm(object):
 
         for a in range(0, 4):
             for b in range(0, 3):
-                for c in range(b, 3):
+                for c in range(b+1, 3):
                     population.append(self._crossover(top[b].kernel, top[c].kernel))
 
                 population.append(self._mutate(top[b].kernel))
@@ -112,11 +113,12 @@ class GeneticAlgorithm(object):
         )
 
     def _crossover(self, member1:DitherKernel, member2:DitherKernel)->DitherKernel:
-        k1 = member1
-        k2 = member2
         if (random.randint(0,1) == 0):
-            k1 = member2
-            k2 = member1
+            k1 = member2.clone()
+            k2 = member1.clone()
+        else:
+            k1 = member1.clone()
+            k2 = member2.clone()
 
         retdenom = k1.denom
         if (k1.denom != k2.denom):
@@ -125,6 +127,7 @@ class GeneticAlgorithm(object):
         k1.nums = [[x * int(retdenom / k1.denom) for x in row] for row in k1.nums]
         k2.nums = [[x * int(retdenom / k2.denom) for x in row] for row in k2.nums]
 
+        # create a y and x break AFTER the x (the pixel we're calculating)
         ybreak = random.randint(0, min(len(k1.nums), len(k2.nums)))
         xbreak = random.randint(0, min(len(k1.nums[0]), len(k2.nums[0])))
         while (xbreak <= k1.start_x and ybreak == k1.start_y):
@@ -133,7 +136,7 @@ class GeneticAlgorithm(object):
 
         retKernel = DitherKernel()
         retKernel.nums = []
-        for y in range(0, len(k2.nums)):
+        for y in range(0, len(k2.nums)): # size of kernel determined by k2
             row = []
             for x in range(0, len(k2.nums[0])):
                 if (x < xbreak or y < ybreak) and len(k1.nums[0]) > x+1 and len(k1.nums) > y+1:
@@ -142,7 +145,7 @@ class GeneticAlgorithm(object):
                     row.append(k2.nums[y][x])
             retKernel.nums.append(row)
 
-        retKernel.start_x = k1.start_x
+        retKernel.start_x = k1.start_x # start pixel determined by k1
         retKernel.start_y = k1.start_y
 
         retKernel.denom = 0
@@ -159,6 +162,7 @@ class GeneticAlgorithm(object):
         retKernel.nums = [[int(x / reduct) for x in row] for row in retKernel.nums]
         retKernel.denom = int(retKernel.denom / reduct)
 
+#        retDither.reduce() # get smallest form of produced dither
         return retKernel
 
     def _mutate(self, member:DitherKernel)->DitherKernel:
@@ -169,6 +173,8 @@ class GeneticAlgorithm(object):
         retDither.nums = copy.deepcopy(member.nums)
 
         # one to four random changes
+        # FIXME: should not allow negatives
+        # FIXME: should be in relation to denom (a 10000 denom, +1 will be useless)
         for a in range(0, random.randint(1, 4)):
             randx, randy = self.get_random_square(member)
             retDither.nums[randy][randx] += 1
@@ -179,7 +185,7 @@ class GeneticAlgorithm(object):
         return retDither
 
 
-    def __get_random_sq(self, state:DitherKernel)->[int,int]:
+    def __get_random_sq(self, state:DitherKernel):
         randy = random.randint(0, len(state.nums) - 1)
         if randy == state.start_y:
             randx = random.randint(state.start_x + 1, len(state.nums[randy]) - 1)
@@ -187,7 +193,7 @@ class GeneticAlgorithm(object):
             randx = random.randint(0, len(state.nums[randy]) - 1)
         return randx, randy
 
-    def get_random_square(self, state:DitherKernel, greaterThanZero:bool=False)->[int,int]:
+    def get_random_square(self, state:DitherKernel, greaterThanZero:bool=False):
         """Determine a square to add to or subtract from"""
         randx, randy = self.__get_random_sq(state)
 

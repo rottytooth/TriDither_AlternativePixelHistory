@@ -122,8 +122,17 @@ class DitherKernel(object):
             self.start_y = int(DITHERS[name]['start_y'])
             self.nums = list(DITHERS[name]['nums'])
             self.denom = int(DITHERS[name]["denom"])
+
     def __str__(self):
         return f"nums: {self.nums}, denom: {self.denom}, start: [{self.start_x}, {self.start_y}]"
+
+    def clone(self):
+        dk = DitherKernel()
+        dk.start_x = self.start_x
+        dk.start_y = self.start_y
+        dk.nums = self.nums[:]
+        dk.denom = self.denom
+        return dk
 
     def reduce(self):
         """Reduce a kernel to its minimal size: removing unused columns (columns that only have zeros), unused rows

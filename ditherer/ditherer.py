@@ -10,9 +10,7 @@ class Ditherer(object):
     def __init__(self, imgarray:np.ndarray=None):
         self.imgarray = imgarray
 
-    # TODO: handle three- or more-color dithering
-    # That may cause issues with the percentage
-    def dither(self, kernel:DitherKernel, serpentine:bool=False, percent:int=100, rowoffset:bool=False) -> np.ndarray:
+    def dither(self, kernel:DitherKernel, even_col_kernel:DitherKernel=None, serpentine:bool=False, percent:int=100, rowoffset:bool=False) -> np.ndarray:
         """
         This accepts either an image (as PNG) or a raw .npy dataset produced by pixelating a non-rectangular image. Either way, it will treat each memory cell as a pixel and dither from black to white (this is two-color only)
         """
@@ -28,10 +26,17 @@ class Ditherer(object):
 
             if (serpentine == False or y % 2 == 0): # direction
                 for x in range(0, len(self.imgarray[y])):
-                    self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
+                    if (x % 2 == 1 and even_col_kernel is not None):
+                        self.calculate_cell(even_col_kernel, x, y, retarray, True, percent, rowoffset)
+                    else:
+                        self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
             else:
                 for x in range(len(self.imgarray[y]) -1, -1, -1):
-                    self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
+                    if (x % 0 == 1 and even_col_kernel is not None):
+                        self.calculate_cell(even_col_kernel, x, y, retarray, False, percent, rowoffset)
+                    else:
+                        self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
+
 
         return retarray
 
@@ -136,14 +141,15 @@ if __name__ == '__main__':
 
     IN_PATH = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/source_img/'
 
+    IN_PATH_DATA = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/data/'
 
-    percent = 50
+    # percent = 50
 
     # work off image already in Ditherer
-    dith = Ditherer(cv2.cvtColor(cv2.imread(IN_PATH + "gradient.png"), cv2.COLOR_BGR2GRAY))
+    dith = Ditherer(cv2.cvtColor(cv2.imread(IN_PATH + "david.jpg"), cv2.COLOR_BGR2GRAY))
 
-    imgresult = dith.dither(DitherKernel("FloydSteinberg"), False, percent)
-    cv2.imwrite(PATH + f"gradient_FS_{percent}ci-init.png", imgresult)
+    imgresult = dith.dither(DitherKernel("FloydSteinberg"), None, False)
+    cv2.imwrite(PATH + f"david_hex_FS.png", imgresult)
 
-    imgresult = dith.dither(DitherKernel("Atkinson"), False, percent)
-    cv2.imwrite(PATH + f"gradient_Atkinson_{percent}ci-init.png", imgresult)
+    imgresult = dith.dither(DitherKernel("Atkinson"), None, False)
+    cv2.imwrite(PATH + f"david_hex_Atkinson.png", imgresult)
