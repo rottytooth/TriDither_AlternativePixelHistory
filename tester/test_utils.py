@@ -17,13 +17,14 @@ def random_dither_size():
         'denom' : random.randint(4,48)
     }
 
-def arr_to_kernel(arr:list, denom:int)->DitherKernel:
+def arr_to_kernel(arr:list, denom:int, rows:int)->DitherKernel:
     retDith = DitherKernel()
-    retDith.start_x = 1
-    retDith.start_y = 0
-    firstrow = [0,0]
-    firstrow.append(arr[0])
-    retDith.nums = [firstrow,arr[1:]]
+    retDith.start_x = 1 # should not be hardcoded
+    retDith.start_y = 0 # should not be hardcoded
+    firstrow = [0,0] # up to start x
+    rowsize = (len(arr) + 2 ) % rows # check that this is an int
+    firstrow += arr[0:rowsize]
+    retDith.nums = [firstrow,arr[rowsize:]]
     retDith.denom = denom
     return retDith 
 

@@ -56,21 +56,16 @@ class ImageCompare(object):
         # the two images are
         return err
 
-    def scoreImageByLoc(self, original_path, compare_path, name):
-        "Accepts images by path instead of as dataframes"
-        original = asarray(Image.open(original_path).convert('L'))
-        compare = asarray(Image.open(compare_path).convert('L'))
-        return self.scoreImage(original, compare, name)
-
-    def scoreImage(self, original:np.ndarray, compare:np.ndarray, name:str=None) -> ImageScore:
-        "original = original for comparison. usually this is the pixelated, not original image"
+    #FIXME: this does not work for images that have been cropped (such as eq triangles). It places the dithered image (cropped) on the uncropped original, and this gives it a higher score than it would otherwise get
+    def scoreImage(self, original:np.ndarray, compare:np.ndarray, name_prefix:str=None) -> ImageScore:
+        "original = original for comparison. for non-square pixels, this is the pixelated version, not original image"
 
         blurred_original = filters.gaussian(original, sigma=self.sigma, preserve_range=True)
         blurred_compare = filters.gaussian(compare, sigma=self.sigma, preserve_range=True)
 
-        if name != None:
-            cv2.imwrite(f"{PATH}{name}_original_blur.PNG", blurred_original)
-            cv2.imwrite(f"{PATH}{name}_compare_blur.PNG", blurred_compare)
+        if name_prefix != None:
+            cv2.imwrite(f"{PATH}{name_prefix}_original_blur.PNG", blurred_original)
+            cv2.imwrite(f"{PATH}{name_prefix}_compare_blur.PNG", blurred_compare)
 
         score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare))
 
@@ -187,14 +182,14 @@ class ImageCompare(object):
 #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
         # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
-        dithered_img = shapizer.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True, rectangular=True)
+        dithered_img = shapizer.pixelate(image, width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
 
         filename = f"{idd}/greyset_fs"
 
         image = image.convert("L")
         dithered_img = np.array(dithered_img.convert("L"))
 
-        score = self.run_test(dithered_img, np.array(image), filename, testname, serpentine, idd)
+        score = self.run_test(dithered_img, np.array(image), f"{path}/{shape}.png", testname, serpentine, idd)
 
 #        logging.info("export to file")
         cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
@@ -206,7 +201,7 @@ class ImageCompare(object):
         
     def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool, idd:uuid)->np.float64:
         "Just calls scoreImage, and logs result, returns score"
-        score1 = self.scoreImage(image, fs, filename + dithername + ('serpentine' if serpentine else 'ltor'))
+        score1 = self.scoreImage(image, fs, filename)
         logging.info(f"{dithername} for {filename}, {'serpentine' if serpentine else 'left to right'}:")
         logging.info(f"\tssim for {idd}: {score1.ssim}")
         # print(f"\tssim_c: {score1.ssim_c}")

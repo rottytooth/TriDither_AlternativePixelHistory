@@ -1,10 +1,4 @@
-import random
-import math
 import logging
-import copy
-import datetime
-import numpy as np
-import os
 import multiprocessing
 
 from ditherer.dither_kernel import DitherKernel
@@ -34,7 +28,7 @@ class Exhaustive(object):
             sum = sum + i
         return(sum) 
 
-    def combine(self, target:int, size:int, start:list, retlist:list):
+    def produce_population_set(self, target:int, size:int, start:list, retlist:list):
         if (len(start) == size - 1):
             last = target - self._sum(start)
             if last > 0:
@@ -44,22 +38,21 @@ class Exhaustive(object):
             for i in range(target):
                 t = start[:]
                 t.append(i)
-                self.combine(target, size, t[:], retlist)
+                self.produce_population_set(target, size, t[:], retlist)
 
     def run(self, shape):
-        initial_score = 0.0
-        generations = 0
+        logging.info(f"images writing to: out/{self.now}")
 
         retlist = []
-        self.combine(self.denom,5,[],retlist)
-        print(retlist)
+        self.produce_population_set(self.denom,self.cols,[],retlist)
+        # print(retlist)
 
         self._score_population(retlist)       
 
     @staticmethod
-    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, down_ker:DitherKernel=None):
+    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, rows, down_ker:DitherKernel=None):
         logging.info(f"Getting score for #{num}")
-        return_dict[num] = im.imgtest(arr_to_kernel(member, denom), "exhaustive", False, now, iteration, shape, down_ker=down_ker)
+        return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows), "exhaustive", False, now, iteration, shape, down_ker=down_ker)
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self, population):
@@ -68,16 +61,19 @@ class Exhaustive(object):
         gencount = 0
         processes = []
 
-        for j in range(0, len(population), GEN_SIZE):
-            arrsize = range(j, min(j + GEN_SIZE, len(population)))
-            gencount += 1
-            logging.info(f"Beginning generation {gencount}")
-            for i in arrsize:
-                processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(population[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.down_ker)))
-            for i in arrsize:
-                processes[i].start()
-            for i in arrsize:
-                processes[i].join()
+
+        Exhaustive._get_score(population[0], return_dict, 0, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.down_ker)
+
+        # for j in range(0, len(population), GEN_SIZE):
+        #     arrsize = range(j, min(j + GEN_SIZE, len(population)))
+        #     gencount += 1
+        #     logging.info(f"Beginning generation {gencount}")
+        #     for i in arrsize:
+        #         processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(population[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.down_ker)))
+        #     for i in arrsize:
+        #         processes[i].start()
+        #     for i in arrsize:
+        #         processes[i].join()
 
         print(return_dict)
         logging.info(return_dict)

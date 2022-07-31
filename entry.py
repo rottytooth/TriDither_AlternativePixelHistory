@@ -9,6 +9,7 @@ import uuid
 from argparse import ArgumentParser
 import textwrap
 import logging
+
 from ditherer.ditherer import Ditherer, DitherKernel
 from shapizer import shapizer_factory
 from tester.image_compare import ImageCompare
@@ -18,6 +19,10 @@ from tester.exhaustive_run import Exhaustive
 parser = ArgumentParser()
 parser.add_argument("process", nargs=1, help=textwrap.dedent("""
     dither: for an image or numpy array of greyscale values, dither from grey to b&w
+    pixelate: for a source image, generate both a pixelated image and an npm dataset of greyscale values
+    score: score a single dithered image against its pixelated version (and npm dataset)
+    ml: run ml model to find ideal kernel for pixel shape
+    exhaustive: run every possible kernel for a given shape, denom, and cells
 """))
 parser.add_argument('-i', '--infile', type=str, help='input file')
 parser.add_argument('-o', '--outfile', '--outpath', type=str, help='output file or folder')
@@ -53,13 +58,13 @@ def main():
         dither(originalpath + args.infile, outpath + args.outfile, greypath + args.greylocation, args.shape, args.kernel)
     if args.process == ['score']:
         # score a single dithered image against its pixelated version (and npm dataset)
-        score(pixelpath + args.infile, greypath + args.greylocation, args.shape)
+        score(pixelpath + args.infile, outpath + args.outfile , greypath + args.greylocation, args.shape)
         #FIXME: may want to pass outpath for this
     if args.process == ['ml']:
         # run ml model to find ideal kernel for pixel shape
         ml("pixelated_img/" + args.infile, greypath + args.greylocation, "out/" + args.outpath)
     if args.process == ['exhaustive']:
-        exhaustive(pixelpath + args.infile, greypath + args.greylocation, outpath + args.outfile, "hexagon")
+        exhaustive(pixelpath + args.infile, greypath + args.greylocation,"hexagon", rootLogger)
 
     logging.info("Process complete")
 
@@ -116,20 +121,23 @@ def dither(original_image, outpath, greylocation, shape, kernel):
         # this is indicated by including the grey data set (of b&w)
         shapizer.pixelate(image, width, height, outpath, dithered_tri, rectangular=rect, save_files=True) #, rectangular=True)
 
-def score(infile, greyscale, outfile, shape, name):
+def score(infilepath:str, outfilepath:str, greyscalepath:str, shape, name=None):
     "Scores a single image"
     imc = ImageCompare(Ditherer(None))
-    imc.greyscale = greyscale
-    imc.original_img = infile
+    imc.greyscale = greyscalepath
+    imc.original_img = infilepath
 
     # increase blurriness for large pixels
     if (shape != "square"):
         imc.sigma = 9.0
 
-    # name="david_entry_test_"
+    name_prefix="test"
+
+    infile = np.asarray(Image.open(infilepath).convert('L'))
+    outfile = np.asarray(Image.open(outfilepath).convert('L'))
 
     #NOTE: name is only used if saving the blurry files
-    score = imc.scoreImageByLoc(infile, outfile, name)
+    score = imc.scoreImage(infile, outfile, name_prefix)
     logging.info(f"score = {score.ssim}")
     return score.ssim
 
@@ -165,9 +173,12 @@ def file_logging(run_indicator):
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
 
-def exhaustive(infile, greyfile, outpath, shape):
+def exhaustive(infile, greyfile, shape, rootLogger):
     now = datetime.datetime.now()
-    nowstr = f"{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}"
+    nowstr = f"{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}_{now.microsecond}"
+
+    fileHandler = logging.FileHandler(f'logs/exh_{nowstr}.log')
+    rootLogger.addHandler(fileHandler)
 
     shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)
     shapizer.greylocation = greyfile
@@ -187,10 +198,9 @@ def exhaustive(infile, greyfile, outpath, shape):
     start_ker = DitherKernel()
     start_ker.start_x = 1
     start_ker.start_y = 0
-    start_ker.denom = 32
-    start_ker.nums = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 32]]
+    start_ker.denom = 16
 
-    dt = Exhaustive(im, nowstr, 2, 5, 'hexagon', 1, 0, 32, start_ker)
+    dt = Exhaustive(im, nowstr, 2, 6, 'hexagon', 1, 0, 16)
     dt.run(shape)
 
 def ml(infile, greyfile, outpath):
