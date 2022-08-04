@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import numpy as np
 
 from ditherer.dither_kernel import DitherKernel
 from ditherer.ditherer import Ditherer
@@ -7,6 +8,7 @@ from tester.image_compare import ImageCompare, ImageScore #, full_test_ditheralg
 from tester.test_utils import complete_random_dither, arr_to_kernel
 
 GEN_SIZE = 40
+ROW_MIN = 3
 
 class Exhaustive(object):
 
@@ -28,52 +30,93 @@ class Exhaustive(object):
             sum = sum + i
         return(sum) 
 
-    def produce_population_set(self, target:int, size:int, start:list, retlist:list):
-        if (len(start) == size - 1):
-            last = target - self._sum(start)
-            if last > 0:
-                start.append(last)
-                retlist.append(start)
-        else:
-            for i in range(target):
-                t = start[:]
-                t.append(i)
-                self.produce_population_set(target, size, t[:], retlist)
+    def load_kernel_list(self, kernel): 
+        if len(kernel) == self.kernel_length - 1:
+            remaining_value = self.denom - np.sum(kernel)
+            if remaining_value < 0:
+                raise Exception("impossible kernel rejected")
+            kernel = np.append(kernel, remaining_value)
 
-    def run(self, shape):
+            test_arr = np.zeros(self.start_x + 1) # FIXME: this assumes start_y of zero
+            test_arr = np.append(test_arr, kernel)
+
+            # make sure that each row has a value > 0 or don't add
+            test_arr = np.array_split(test_arr, self.rows)
+            sums = np.sum(test_arr, axis=1)
+            if np.where(sums < ROW_MIN)[0].size == 0: # if there are no rows that sum to 0, 1, or 2
+                self.kernel_list.append(kernel.tolist())
+            self.initial_kernel_loaded = True
+            return
+        elif not self.initial_kernel_loaded:
+            nkernel = np.append(kernel, self.initial_kernel[len(kernel)])
+            self.load_kernel_list(nkernel)
+        start_count = 0 #self.initial_kernel[len(kernel)] + 1
+        end_count = self.denom - np.sum(kernel)
+        for i in range(start_count, end_count):
+            self.load_kernel_list(np.append(kernel, i))
+
+    def run(self):
         logging.info(f"images writing to: out/{self.now}")
 
-        retlist = []
-        self.produce_population_set(self.denom,self.cols,[],retlist)
-        # print(retlist)
+        # set initial state
+        self.kernel_list = []
 
-        self._score_population(retlist)       
+        # assumes start_y of zero for now and no back-propogation
+        self.kernel_length = (self.rows - 1) * self.cols + (self.cols - self.start_x - 1)
+        self.initial_kernel = np.zeros(self.kernel_length).astype('int64')
+
+        self.initial_kernel[self.cols - self.start_x - 2] = 1 # end of first row
+        
+        # for a three- or more-rowed kernel, this should fill in 1s at the end of the row
+        for i in range(1, self.rows - 1): 
+            self.initial_kernel[self.cols - self.start_x + i * self.cols] = 1
+
+        # whatever is left over is stuck at the end
+        self.initial_kernel[-1] = self.denom - np.sum(self.initial_kernel) 
+
+        # this should be a check to make sure we've generated the correct starting state: kernel should have each row ending with 1 except the last row, which is the denom minus those 1s.
+        self.denom = np.sum(self.initial_kernel) # denominator
+        self.initial_kernel_loaded = False
+        self.load_kernel_list(np.array([]).astype('int64'))
+
+        self._score_population()
 
     @staticmethod
-    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, rows, down_ker:DitherKernel=None):
+    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, rows, cols, start_x, down_ker:DitherKernel=None):
+        
+        #FIXME: Why do we need to do all this again? Without this, nothing is logged
+        logFormatter = logging.Formatter("%(asctime)s  %(message)s")
+        rootLogger = logging.getLogger()
+        rootLogger.setLevel(logging.INFO)
+        fileHandler = logging.FileHandler(f'logs/exh_{now}.log')
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setFormatter(logFormatter)
+        rootLogger.addHandler(fileHandler)
+
         logging.info(f"Getting score for #{num}")
-        return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows), "exhaustive", False, now, iteration, shape, down_ker=down_ker)
+        return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows, cols, start_x), "exhaustive", False, now, iteration, shape, down_ker=down_ker)
         logging.info(f"Completed work on #{num}")
 
-    def _score_population(self, population):
+    def _score_population(self):
         manager = multiprocessing.Manager()
         return_dict = manager.dict()
         gencount = 0
         processes = []
 
+        # # bypass all the process stuff to test on one image
+        # Exhaustive._get_score(self.kernel_list[0], return_dict, 0, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.down_ker)
+        # return
 
-        Exhaustive._get_score(population[0], return_dict, 0, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.down_ker)
-
-        # for j in range(0, len(population), GEN_SIZE):
-        #     arrsize = range(j, min(j + GEN_SIZE, len(population)))
-        #     gencount += 1
-        #     logging.info(f"Beginning generation {gencount}")
-        #     for i in arrsize:
-        #         processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(population[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.down_ker)))
-        #     for i in arrsize:
-        #         processes[i].start()
-        #     for i in arrsize:
-        #         processes[i].join()
+        for j in range(0, len(self.kernel_list), GEN_SIZE):
+            arrsize = range(j, min(j + GEN_SIZE, len(self.kernel_list)))
+            gencount += 1
+            logging.info(f"Beginning generation {gencount}")
+            for i in arrsize:
+                processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.down_ker)))
+            for i in arrsize:
+                processes[i].start()
+            for i in arrsize:
+                processes[i].join()
 
         print(return_dict)
         logging.info(return_dict)

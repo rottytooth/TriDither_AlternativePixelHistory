@@ -18,7 +18,7 @@ from ditherer.dither_kernel import DITHERS, DitherKernel
 from ditherer.ditherer import Ditherer
 from shapizer.shapizer_factory import ShapizerFactory
 
-PATH = 'out/'
+OUT_DIR = 'out'
 
 
 class ImageScore(object):
@@ -64,8 +64,10 @@ class ImageCompare(object):
         blurred_compare = filters.gaussian(compare, sigma=self.sigma, preserve_range=True)
 
         if name_prefix != None:
-            cv2.imwrite(f"{PATH}{name_prefix}_original_blur.PNG", blurred_original)
-            cv2.imwrite(f"{PATH}{name_prefix}_compare_blur.PNG", blurred_compare)
+            if not cv2.imwrite(f"{name_prefix}_original_blur.png", blurred_original):
+                logging.error(f"Failed to save original blur")
+            if not cv2.imwrite(f"{name_prefix}_compare_blur.png", blurred_compare):
+                logging.error(f"Failed to save compare blur")
 
         score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare))
 
@@ -95,7 +97,7 @@ class ImageCompare(object):
                 x[j][i] = random.randint(0, 1) * 255
 
         # if filename != "":
-        #     cv2.imwrite(PATH + filename, x)
+        #     cv2.imwrite(OUT_DIR + filename, x)
         return x
 
     def test_itself(self, image:np.ndarray, filename:str):
@@ -123,7 +125,7 @@ class ImageCompare(object):
 
     def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None):
         "Dithers and then scores result; writes out image dithered, returns score"
-        image = self.getImage(PATH + self.original_img)
+        image = self.getImage(OUT_DIR + "/" + self.original_img)
         self.d = Ditherer(image)
         dithered_img = self.d.dither(kernel, serpentine)
         score = self.run_test(dithered_img, image, self.original_img, testname, serpentine)
@@ -131,7 +133,7 @@ class ImageCompare(object):
         idd = str(uuid.uuid4())
         filename = f"{idd}/greyset_fs"
 
-        cv2.imwrite(f"{PATH}{testname}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+        cv2.imwrite(f"{OUT_DIR}/{testname}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
         return score, ""
 
 
@@ -142,17 +144,17 @@ class ImageCompare(object):
 
         # make directory
         idd = str(uuid.uuid4())
-        if not os.path.exists(f"{PATH}/{dirname}"):
+        if not os.path.exists(f"{OUT_DIR}/{dirname}"):
             try:
-                os.makedirs(f"{PATH}/{dirname}")
+                os.makedirs(f"{OUT_DIR}/{dirname}")
             except:
                 pass
-        if not os.path.exists(f"{PATH}/{dirname}/{iteration}"):
+        if not os.path.exists(f"{OUT_DIR}/{dirname}/{iteration}"):
             try:
-                os.makedirs(f"{PATH}/{dirname}/{iteration}")
+                os.makedirs(f"{OUT_DIR}/{dirname}/{iteration}")
             except:
                 pass # sometimes another thread will have created the folder after testing
-        path = f"{PATH}/{dirname}/{iteration}/{idd}"
+        path = f"{OUT_DIR}/{dirname}/{iteration}/{idd}"
         os.mkdir(path)
 
         self.sigma = 9.0 # higher blur for large-pixel work
@@ -168,10 +170,10 @@ class ImageCompare(object):
         # restore np.load for future normal usage
         np.load = np_load_old
 
-        shapizer = ShapizerFactory.GetShapizer(shape, args=f"{PATH}{dirname}")
+        shapizer = ShapizerFactory.GetShapizer(shape, args=f"{OUT_DIR}/{dirname}")
 
-        image = Image.open(self.original_img).convert('LA').convert("RGBA")
-        width, height = image.size
+        original_image = Image.open(self.original_img).convert('LA').convert("RGBA")
+        width, height = original_image.size
 
         if down_ker is None:
             down_ker = kernel
@@ -182,26 +184,33 @@ class ImageCompare(object):
 #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
         # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
-        dithered_img = shapizer.pixelate(image, width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
+        dithered_img = shapizer.pixelate(original_image.copy(), width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
 
         filename = f"{idd}/greyset_fs"
 
-        image = image.convert("L")
+        original_image = original_image.convert("L")
         dithered_img = np.array(dithered_img.convert("L"))
 
-        score = self.run_test(dithered_img, np.array(image), f"{path}/{shape}.png", testname, serpentine, idd)
+        blur_img_path=None
+        # Uncomment to write out incidental blurred images to disk
+#        blur_img_path=f"{path}/blur/" 
+
+        if blur_img_path and not os.path.exists(f"{path}/blur/"):
+            os.makedirs(f"{path}/blur/")
+
+        score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
 
 #        logging.info("export to file")
-        cv2.imwrite(f"{PATH}{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+        cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
 
         # logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
 
         return score, idd        
 
         
-    def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool, idd:uuid)->np.float64:
+    def run_test(self, fs:np.ndarray, image:np.ndarray, filename:str, dithername:str, serpentine:bool, idd:uuid, blur_img_path:str=None)->np.float64:
         "Just calls scoreImage, and logs result, returns score"
-        score1 = self.scoreImage(image, fs, filename)
+        score1 = self.scoreImage(image, fs, blur_img_path)
         logging.info(f"{dithername} for {filename}, {'serpentine' if serpentine else 'left to right'}:")
         logging.info(f"\tssim for {idd}: {score1.ssim}")
         # print(f"\tssim_c: {score1.ssim_c}")
@@ -213,7 +222,7 @@ class ImageCompare(object):
         """Tests a single kernel with a series of progressively more difficult
         images. Standard test for rectangular pixels."""
         idd = str(uuid.uuid4())
-        os.mkdir(f"{PATH}{idd}")
+        os.mkdir(f"{OUT_DIR}/{idd}")
 
         logging.info(f"BEGIN {testname} TEST AT {datetime.datetime.now()}")
         logging.info(f"UUID CODE is {idd}")
@@ -255,7 +264,7 @@ def full_test_image(filename:str):
     whether it is a good image to use to test new dithers"""
     logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
 
-    image = self.getImage(PATH + filename + ".png")
+    image = self.getImage(OUT_DIR + filename + ".png")
     d = Ditherer(image)
     imc = ImageCompare(d)
 
@@ -271,24 +280,3 @@ def full_test_image(filename:str):
     logging.info(f"COMPLETE {filename} TEST AT {datetime.datetime.now()}")
 
 
-if __name__ == '__main__':
-    logFormatter = logging.Formatter("%(asctime)s  %(message)s")
-    rootLogger = logging.getLogger()
-
-    now = datetime.datetime.now()
-    fileHandler = logging.FileHandler(f"logs/dithering_{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}.log")
-    fileHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(fileHandler)
-    rootLogger.setLevel(logging.INFO)
-
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
-
-    d = Ditherer(None)
-    imc = ImageCompare(d)
-    imc.greyscale = "data/07246.npy"
-    imc.original_img = "out_img/07246.png"
-#    score = imc.full_test_ditheralgo(DitherKernel("Temkin1"), "temkin1")
-    score, sttr = imc.imgtest(DitherKernel("FloydSteinberg"), "test_tri", False, now)
-    logging.info(f"score = {score}")

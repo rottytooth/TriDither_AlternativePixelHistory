@@ -17,14 +17,13 @@ def random_dither_size():
         'denom' : random.randint(4,48)
     }
 
-def arr_to_kernel(arr:list, denom:int, rows:int)->DitherKernel:
+def arr_to_kernel(nums:list, denom:int, rows:int, cols:int, start_x:int)->DitherKernel:
+    start_y = 0 #FIXME: will support for start_y be needed?
     retDith = DitherKernel()
-    retDith.start_x = 1 # should not be hardcoded
-    retDith.start_y = 0 # should not be hardcoded
-    firstrow = [0,0] # up to start x
-    rowsize = (len(arr) + 2 ) % rows # check that this is an int
-    firstrow += arr[0:rowsize]
-    retDith.nums = [firstrow,arr[rowsize:]]
+    retDith.start_x = start_x
+    retDith.start_y = start_y
+    nums = np.zeros(start_x + 1).astype('int64').tolist() + nums
+    retDith.nums = [nums[x:x+cols] for x in range(0, len(nums),cols)]
     retDith.denom = denom
     return retDith 
 

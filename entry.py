@@ -178,6 +178,7 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     nowstr = f"{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}_{now.microsecond}"
 
     fileHandler = logging.FileHandler(f'logs/exh_{nowstr}.log')
+    rootLogger.setLevel(logging.INFO)
     rootLogger.addHandler(fileHandler)
 
     shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)
@@ -200,8 +201,8 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     start_ker.start_y = 0
     start_ker.denom = 16
 
-    dt = Exhaustive(im, nowstr, 2, 6, 'hexagon', 1, 0, 16)
-    dt.run(shape)
+    dt = Exhaustive(im, nowstr, 2, 3, 'hexagon', 1, 0, 16)
+    dt.run()
 
 def ml(infile, greyfile, outpath):
     now = datetime.datetime.now()
