@@ -32,7 +32,7 @@ class Ditherer(object):
                         self.calculate_cell(kernel, x, y, retarray, True, percent, rowoffset)
             else:
                 for x in range(len(self.imgarray[y]) -1, -1, -1):
-                    if (x % 0 == 1 and even_col_kernel is not None):
+                    if (x % 2 == 1 and even_col_kernel is not None):
                         self.calculate_cell(even_col_kernel, x, y, retarray, False, percent, rowoffset)
                     else:
                         self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)

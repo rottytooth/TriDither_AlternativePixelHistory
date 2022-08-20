@@ -2,17 +2,17 @@ import os
 import shutil
 import re
 
-FILE_PATH = 'out/'
-LOG_PATH = 'logs/'
-COPY_TO = 'out/compiled/'
+FILE_PATH = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/out/'
+LOG_PATH = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/logs/'
+COPY_TO = '/Users/danieltemkin/Repos/TriDither_AlternativePixelHistory/out/compiled/'
 
-loc = '2021_7_30_53_516528'
+loc = '2022_8_3_22_35_35_579427'
 
 """Reads log, copies all the files in order they were generated, into a single folder where they can be loaded as frames in Photoshop
 """
 
 if __name__ == '__main__':
-    file1 = open(f'{LOG_PATH}dithering_{loc}.log', 'r')
+    file1 = open(f'{LOG_PATH}exh_{loc}.log', 'r')
     lines = file1.readlines()
 
     guidlist = dict()
@@ -34,5 +34,5 @@ if __name__ == '__main__':
 
     for i in guidlist.keys():
         print(guidlist[i])
-        shutil.copy(f'{FILE_PATH}{loc}/{guidlist[i][0]}/{guidlist[i][1]}/tri.png', f'{COPY_TO}david/david_{"{:04d}".format(i)}.png')
+        shutil.copy(f'{FILE_PATH}{loc}/{guidlist[i][0]}/{guidlist[i][1]}/hexagon.png', f'{COPY_TO}hex/hex_{"{:04d}".format(i)}.png')
 

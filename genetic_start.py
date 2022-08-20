@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     now = datetime.datetime.now()
     nowstr = f"{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}"
-    fileHandler = logging.FileHandler(f"logs/dithering_{nowstr}.log")
+    fileHandler = logging.FileHandler(f"../logs/dithering_{nowstr}.log")
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     rootLogger.setLevel(logging.INFO)

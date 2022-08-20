@@ -20,6 +20,9 @@ from shapizer.shapizer_factory import ShapizerFactory
 
 OUT_DIR = 'out'
 
+SAVE_BLURRED_IMGS = False
+
+BLUR_LEVEL = 18.0 #FIXME: This should be calculated based on pixel size and maybe image size
 
 class ImageScore(object):
     def __init__(self, blur_level:np.float64, ssim:np.float64):
@@ -116,19 +119,23 @@ class ImageCompare(object):
         rnd = self.random_img(image)
         self.run_test(rnd, image, filename, "Random", False)
 
-    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str, shape:str, down_ker:DitherKernel=None):
+    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False):
         if (shape == 'square'):
-            return self.imgtest_square(kernel, testname, serpentine, now, iteration, shape, down_ker)
+            return self.imgtest_square(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring)
         else:
-            return self.imgtest_other(kernel, testname, serpentine, now, iteration, shape, down_ker)
+            return self.imgtest_other(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring)
 
 
-    def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None):
+    def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None, skip_scoring=False):
         "Dithers and then scores result; writes out image dithered, returns score"
         image = self.getImage(OUT_DIR + "/" + self.original_img)
         self.d = Ditherer(image)
         dithered_img = self.d.dither(kernel, serpentine)
-        score = self.run_test(dithered_img, image, self.original_img, testname, serpentine)
+        
+        if not skip_scoring:
+            score = self.run_test(dithered_img, image, self.original_img, testname, serpentine)
+        else:
+            score = 0
 
         idd = str(uuid.uuid4())
         filename = f"{idd}/greyset_fs"
@@ -137,7 +144,7 @@ class ImageCompare(object):
         return score, ""
 
 
-    def imgtest_other(self, kernel:DitherKernel, testname:str, serpentine:bool, dirname:str, iteration:str, shape:str, down_ker:DitherKernel=None):
+    def imgtest_other(self, kernel:DitherKernel, testname:str, serpentine:bool, dirname:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False):
         """Standard test for non-square dither. Works off a .npy file of greyscale info.
         Uses original image to determine size, and the .npy file for the pixelated version
         of the image. Logs location of images it writes and returns score"""
@@ -157,7 +164,7 @@ class ImageCompare(object):
         path = f"{OUT_DIR}/{dirname}/{iteration}/{idd}"
         os.mkdir(path)
 
-        self.sigma = 9.0 # higher blur for large-pixel work
+        self.sigma = BLUR_LEVEL # higher blur for large-pixel work
 
         logging.info(f"BEGIN {testname} TEST FOR {idd} AT {datetime.datetime.now()}")
         logging.info(f"kernel for {idd} : {kernel.nums}, /{kernel.denom}")
@@ -186,22 +193,27 @@ class ImageCompare(object):
 
         dithered_img = shapizer.pixelate(original_image.copy(), width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
 
-        filename = f"{idd}/greyset_fs"
+        if not skip_scoring:
+            filename = f"{idd}/greyset_fs"
 
-        original_image = original_image.convert("L")
-        dithered_img = np.array(dithered_img.convert("L"))
+            original_image = original_image.convert("L")
+            dithered_img = np.array(dithered_img.convert("L"))
 
-        blur_img_path=None
-        # Uncomment to write out incidental blurred images to disk
-#        blur_img_path=f"{path}/blur/" 
+            blur_img_path=None
 
-        if blur_img_path and not os.path.exists(f"{path}/blur/"):
-            os.makedirs(f"{path}/blur/")
+            if SAVE_BLURRED_IMGS:
+                blur_img_path=f"{path}/blur/" 
 
-        score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
+            if blur_img_path and not os.path.exists(f"{path}/blur/"):
+                os.makedirs(f"{path}/blur/")
 
-#        logging.info("export to file")
-        cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+            score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
+
+    #        logging.info("export to file")
+            cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+        else:
+            score = 0
+
 
         # logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
 
@@ -259,24 +271,24 @@ class ImageCompare(object):
         return img
 
 
-def full_test_image(filename:str):
-    """Tests a single image in a series of dithers and controls. This is used to determine
-    whether it is a good image to use to test new dithers"""
-    logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
+# def full_test_image(filename:str):
+#     """Tests a single image in a series of dithers and controls. This is used to determine
+#     whether it is a good image to use to test new dithers"""
+#     logging.info(f"BEGIN {filename} TEST AT {datetime.datetime.now()}")
 
-    image = self.getImage(OUT_DIR + filename + ".png")
-    d = Ditherer(image)
-    imc = ImageCompare(d)
+#     image = self.getImage(OUT_DIR + filename + ".png")
+#     d = Ditherer(image)
+#     imc = ImageCompare(d)
 
-    imc.test_itself(image, filename)
-    imc.test_random(image, filename)
-    imc.test_cutoffs(image, filename)
+#     imc.test_itself(image, filename)
+#     imc.test_random(image, filename)
+#     imc.test_cutoffs(image, filename)
     
-    imc.run_test(imc.d.dither(DitherKernel("Floyd-Steinberg"), False), image, filename, "Floyd-Steinberg", False)
-    imc.run_test(imc.d.dither(DitherKernel("Floyd-Steinberg"), True), image, filename, "Floyd-Steinberg", True)    
-    imc.run_test(imc.d.dither(DitherKernel("Atkinson"), False), image, filename, "Atkinson", False)
-    imc.run_test(imc.d.dither(DitherKernel("Atkinson"), True), image, filename, "Atkinson", True)
+#     imc.run_test(imc.d.dither(DitherKernel("Floyd-Steinberg"), False), image, filename, "Floyd-Steinberg", False)
+#     imc.run_test(imc.d.dither(DitherKernel("Floyd-Steinberg"), True), image, filename, "Floyd-Steinberg", True)    
+#     imc.run_test(imc.d.dither(DitherKernel("Atkinson"), False), image, filename, "Atkinson", False)
+#     imc.run_test(imc.d.dither(DitherKernel("Atkinson"), True), image, filename, "Atkinson", True)
 
-    logging.info(f"COMPLETE {filename} TEST AT {datetime.datetime.now()}")
+#     logging.info(f"COMPLETE {filename} TEST AT {datetime.datetime.now()}")
 
 

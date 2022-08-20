@@ -14,4 +14,8 @@ class ShapizerFactory():
         if shape == "hexagon":
             shapizer = Hexagonizer(args)
 
-        return shapizer
+        try:
+            return shapizer        
+        except:
+            raise Exception("Could not determine shape")
+

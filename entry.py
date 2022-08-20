@@ -12,7 +12,7 @@ import logging
 
 from ditherer.ditherer import Ditherer, DitherKernel
 from shapizer import shapizer_factory
-from tester.image_compare import ImageCompare
+from tester.image_compare import ImageCompare, BLUR_LEVEL
 from tester.genetic_algorithm import GeneticAlgorithm
 from tester.exhaustive_run import Exhaustive
 
@@ -31,6 +31,9 @@ parser.add_argument('-k', '--kernel', type=str, help='dithering kernel')
 parser.add_argument('-s', '--shape', type=str, default='square', help='pixel shape')
 parser.add_argument('-d', '--downkernel', type=str, default='square', help='override the down-facing kernel')
 
+#not really used????
+#BLUR_LEVEL = 432.0 #FIXME: This should be calculated based on pixel size and maybe image size
+
 
 def main():
     args = parser.parse_args()
@@ -45,10 +48,10 @@ def main():
     logging.info("Starting process: %s" % args.process)
 
     # set to default locations
-    originalpath = "source_img/"
-    pixelpath = "pixelated_img/"
-    outpath = "out_img/"
-    greypath = "data/"
+    originalpath = "../source_img/"
+    pixelpath = "../pixelated_img/"
+    outpath = "../out_img/"
+    greypath = "../data/"
 
     if args.process == ['pixelate']:
         # output both a pixelated image and an npm dataset of greyscale values
@@ -129,7 +132,7 @@ def score(infilepath:str, outfilepath:str, greyscalepath:str, shape, name=None):
 
     # increase blurriness for large pixels
     if (shape != "square"):
-        imc.sigma = 9.0
+        imc.sigma = BLUR_LEVEL
 
     name_prefix="test"
 
@@ -137,7 +140,7 @@ def score(infilepath:str, outfilepath:str, greyscalepath:str, shape, name=None):
     outfile = np.asarray(Image.open(outfilepath).convert('L'))
 
     #NOTE: name is only used if saving the blurry files
-    score = imc.scoreImage(infile, outfile, name_prefix)
+    score = imc.scoreImage(infile, outfile)
     logging.info(f"score = {score.ssim}")
     return score.ssim
 
@@ -164,7 +167,7 @@ def make_dir_for_entry(path:str, dirname:str, iteration:int, idd:str)->None:
 def file_logging(run_indicator):
     logFormatter = logging.Formatter("%(asctime)s  %(message)s") # we already have this
     rootLogger = logging.getLogger()
-    fileHandler = logging.FileHandler(f"logs/dithering_{run_indicator}.log")
+    fileHandler = logging.FileHandler(f"../logs/dithering_{run_indicator}.log")
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     rootLogger.setLevel(logging.INFO)
@@ -177,7 +180,7 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     now = datetime.datetime.now()
     nowstr = f"{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}_{now.microsecond}"
 
-    fileHandler = logging.FileHandler(f'logs/exh_{nowstr}.log')
+    fileHandler = logging.FileHandler(f'../logs/exh_{nowstr}.log')
     rootLogger.setLevel(logging.INFO)
     rootLogger.addHandler(fileHandler)
 
@@ -194,14 +197,24 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     np.load = np_load_old
 
     im = ImageCompare(Ditherer(greyset), infile, greyfile)
-    im.sigma = 9.0
+    im.sigma = BLUR_LEVEL
 
     start_ker = DitherKernel()
     start_ker.start_x = 1
     start_ker.start_y = 0
     start_ker.denom = 16
+    rows = 3
+    cols = 3
+    # down_ker = None
+    down_ker = DitherKernel()
+    down_ker.start_x = 1
+    down_ker.start_y = 0
+    down_ker.denom = 16
+    down_ker.nums = [[0, 0, 3], [0, 2, 2], [0, 8, 1]]
+    shape = 'hexagon'
+    row_min = 2
 
-    dt = Exhaustive(im, nowstr, 2, 3, 'hexagon', 1, 0, 16)
+    dt = Exhaustive(im, nowstr, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
     dt.run()
 
 def ml(infile, greyfile, outpath):
