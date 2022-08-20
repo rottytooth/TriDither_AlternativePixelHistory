@@ -18,7 +18,7 @@ from ditherer.dither_kernel import DITHERS, DitherKernel
 from ditherer.ditherer import Ditherer
 from shapizer.shapizer_factory import ShapizerFactory
 
-OUT_DIR = 'out'
+OUT_DIR = '../out'
 
 SAVE_BLURRED_IMGS = False
 
@@ -179,41 +179,40 @@ class ImageCompare(object):
 
         shapizer = ShapizerFactory.GetShapizer(shape, args=f"{OUT_DIR}/{dirname}")
 
-        original_image = Image.open(self.original_img).convert('LA').convert("RGBA")
-        width, height = original_image.size
+        with Image.open(self.original_img).convert('LA').convert("RGBA") as original_image: 
+            width, height = original_image.size
 
-        if down_ker is None:
-            down_ker = kernel
+            if down_ker is None:
+                down_ker = kernel
 
-        self.d = Ditherer(greyset)
-        dithered_tri = self.d.dither(kernel, down_ker, serpentine)
+            self.d = Ditherer(greyset)
+            dithered_tri = self.d.dither(kernel, down_ker, serpentine)
 
-#        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
-        # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
+    #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
+            # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
-        dithered_img = shapizer.pixelate(original_image.copy(), width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
+            dithered_img = shapizer.pixelate(original_image.copy(), width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
 
-        if not skip_scoring:
-            filename = f"{idd}/greyset_fs"
+            if not skip_scoring:
+                filename = f"{idd}/greyset_fs"
 
-            original_image = original_image.convert("L")
-            dithered_img = np.array(dithered_img.convert("L"))
+                original_image = original_image.convert("L")
+                dithered_img = np.array(dithered_img.convert("L"))
 
-            blur_img_path=None
+                blur_img_path=None
 
-            if SAVE_BLURRED_IMGS:
-                blur_img_path=f"{path}/blur/" 
+                if SAVE_BLURRED_IMGS:
+                    blur_img_path=f"{path}/blur/" 
 
-            if blur_img_path and not os.path.exists(f"{path}/blur/"):
-                os.makedirs(f"{path}/blur/")
+                if blur_img_path and not os.path.exists(f"{path}/blur/"):
+                    os.makedirs(f"{path}/blur/")
 
-            score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
+                score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
 
-    #        logging.info("export to file")
-            cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
-        else:
-            score = 0
-
+        #        logging.info("export to file")
+                cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
+            else:
+                score = 0
 
         # logging.info(f"COMPLETE {testname} TEST AT {datetime.datetime.now()}")
 

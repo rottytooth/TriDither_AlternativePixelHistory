@@ -1,5 +1,6 @@
 import logging
-import multiprocessing
+import math
+from multiprocessing import Process, Manager
 import numpy as np
 from PIL import Image
 import time
@@ -8,7 +9,7 @@ from ditherer.dither_kernel import DitherKernel
 from tester.image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
 from tester.test_utils import complete_random_dither, arr_to_kernel
 
-GEN_SIZE = 20
+GEN_SIZE = 48
 ROW_MIN = 2
 
 # run one and stop
@@ -103,6 +104,7 @@ class Exhaustive(object):
         fileHandler = logging.FileHandler(f'../logs/exh_{now}.log')
         consoleHandler = logging.StreamHandler()
         consoleHandler.setFormatter(logFormatter)
+        fileHandler.setFormatter(logFormatter)
         rootLogger.addHandler(fileHandler)
 
         logging.info(f"Getting score for #{num}")
@@ -110,7 +112,7 @@ class Exhaustive(object):
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self):
-        manager = multiprocessing.Manager()
+        manager = Manager()
         return_dict = manager.dict()
         gencount = GEN_START - 1
         processes = []
@@ -122,18 +124,28 @@ class Exhaustive(object):
         starting_kernel = (GEN_START - 1) * GEN_SIZE
 
         for j in range(starting_kernel, len(self.kernel_list), GEN_SIZE):
+
             arrsize = range(j, min(j + GEN_SIZE, len(self.kernel_list) - j))
             gencount += 1
-            time.sleep(1) # to give processes chance to close
-            if gencount % 25 == 0:
-                time.sleep(19)
-            logging.info(f"Beginning generation {gencount}")
+            logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE) + 1}")
             for i in arrsize:
-                processes.append(multiprocessing.Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
+                processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
             for i in arrsize:
-                processes[i - starting_kernel].start()
+                try:
+                    processes[i - starting_kernel].start()
+                except Exception as e:
+                    logging.error(f"ERROR STARTING PROCESS: {e.__class__.__name__}, {e}")
+                    # logging.error("PAUSING")
+                    # time.sleep(24)
+                    # logging.error("TRYING AGAIN")
+                    # processes[i - starting_kernel].start()
+                    raise e
             for i in arrsize:
-                processes[i - starting_kernel].join()
-
+                try:
+                    processes[i - starting_kernel].join()
+                except Exception as e:
+                    logging.error(f"ERROR JOINING PROCESS: {e.__class__.__name__}, {e}")
+                    raise e # or catch here
+ 
         print(return_dict)
         logging.info(return_dict)

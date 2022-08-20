@@ -1,3 +1,5 @@
+ulimit -Sn 256
+
 rm exe/*.*
 
 cd ..
