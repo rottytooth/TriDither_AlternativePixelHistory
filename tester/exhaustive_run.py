@@ -8,7 +8,7 @@ from ditherer.dither_kernel import DitherKernel
 from tester.image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
 from tester.test_utils import complete_random_dither, arr_to_kernel
 
-GEN_SIZE = 30
+GEN_SIZE = 20
 ROW_MIN = 2
 
 # run one and stop
