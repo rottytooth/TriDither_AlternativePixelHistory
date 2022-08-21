@@ -79,12 +79,12 @@ def pixelate(original_image, outpath, greylocation, shape):
     shapizer.greylocation = greylocation
 
     # get size of image
-    image = Image.open(original_image).convert('LA').convert("RGBA")
-    width, height = image.size
+    with Image.open(original_image).convert('LA').convert("RGBA") as image:
+        width, height = image.size
 
-    rect = (shape == 'righttriangle')
+        rect = (shape == 'righttriangle')
 
-    shapizer.pixelate(image, width, height, outpath, rectangular=rect, save_files=True)
+        shapizer.pixelate(image, width, height, outpath, rectangular=rect, save_files=True)
 
 # Dither an image, based on the image's greyscale npm file and the
 # selected dithering kernel. The shape selected must be the same as what
@@ -103,26 +103,28 @@ def dither(original_image, outpath, greylocation, shape, kernel):
     # restore np.load for future normal usage
     np.load = np_load_old
 
-    image = Image.open(original_image).convert('LA').convert("RGBA")
-    width, height = image.size
+    with Image.open(original_image).convert('LA').convert("RGBA") as image:
+        width, height = image.size
 
-    rowoffset = False
-    if shape == "triangle":
-        rowoffset = True
+        rowoffset = False
+        if shape == "triangle":
+            rowoffset = True
 
-    ditherer = Ditherer(greyset)
-    dithered_tri = ditherer.dither(kernel=dither, serpentine=False, rowoffset=rowoffset)
+        ditherer = Ditherer(greyset)
+        del greyset 
+        
+        dithered_tri = ditherer.dither(kernel=dither, serpentine=False, rowoffset=rowoffset)
 
-    if shape == "square":
-        cv2.imwrite(outpath, dithered_tri)
-    else:
-        shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)       
+        if shape == "square":
+            cv2.imwrite(outpath, dithered_tri)
+        else:
+            shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)       
 
-        rect = (shape == 'righttriangle')
+            rect = (shape == 'righttriangle')
 
-        # here, pixelate just means draw the dithered image
-        # this is indicated by including the grey data set (of b&w)
-        shapizer.pixelate(image, width, height, outpath, dithered_tri, rectangular=rect, save_files=True) #, rectangular=True)
+            # here, pixelate just means draw the dithered image
+            # this is indicated by including the grey data set (of b&w)
+            shapizer.pixelate(image, width, height, outpath, dithered_tri, rectangular=rect, save_files=True) #, rectangular=True)
 
 def score(infilepath:str, outfilepath:str, greyscalepath:str, shape, name=None):
     "Scores a single image"
@@ -136,8 +138,10 @@ def score(infilepath:str, outfilepath:str, greyscalepath:str, shape, name=None):
 
     name_prefix="test"
 
-    infile = np.asarray(Image.open(infilepath).convert('L'))
-    outfile = np.asarray(Image.open(outfilepath).convert('L'))
+    with Image.open(infilepath).convert('L') as inf:
+        infile = np.asarray(inf)
+    with Image.open(outfilepath).convert('L') as outf:
+        outfile = np.asarray(outf)
 
     #NOTE: name is only used if saving the blurry files
     score = imc.scoreImage(infile, outfile)
@@ -187,17 +191,9 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)
     shapizer.greylocation = greyfile
 
-
-    np_load_old = np.load
-    # modify the default parameters of np.load
-    np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
-    # call load_data with allow_pickle implicitly set to true
-    greyset = np.load(shapizer.greylocation)
-    # restore np.load for future normal usage
-    np.load = np_load_old
-
-    im = ImageCompare(Ditherer(greyset), infile, greyfile)
-    im.sigma = BLUR_LEVEL
+    # im = ImageCompare(Ditherer(greyset), infile, greyfile)
+    # im.sigma = BLUR_LEVEL
+    # del greyset
 
     start_ker = DitherKernel()
     start_ker.start_x = 1
@@ -205,16 +201,18 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     start_ker.denom = 16
     rows = 3
     cols = 3
-    # down_ker = None
-    down_ker = DitherKernel()
-    down_ker.start_x = 1
-    down_ker.start_y = 0
-    down_ker.denom = 16
-    down_ker.nums = [[0, 0, 3], [0, 2, 2], [0, 8, 1]]
+
+    down_ker = None
+    # down_ker = DitherKernel()
+    # down_ker.start_x = 1
+    # down_ker.start_y = 0
+    # down_ker.denom = 16
+    # down_ker.nums = [[0, 0, 3], [0, 2, 2], [0, 8, 1]]
+
     shape = 'hexagon'
     row_min = 2
 
-    dt = Exhaustive(im, nowstr, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
+    dt = Exhaustive(infile, greyfile, nowstr, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
     dt.run()
 
 def ml(infile, greyfile, outpath):

@@ -1,8 +1,6 @@
-import numpy
 import math
 from PIL import Image, ImageDraw
 import logging
-import numpy as np
 
 from ditherer.dither_kernel import DitherKernel, DITHERS
 from ditherer.ditherer import Ditherer

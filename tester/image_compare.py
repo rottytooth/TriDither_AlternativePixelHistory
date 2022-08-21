@@ -186,6 +186,8 @@ class ImageCompare(object):
                 down_ker = kernel
 
             self.d = Ditherer(greyset)
+            del greyset
+
             dithered_tri = self.d.dither(kernel, down_ker, serpentine)
 
     #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")

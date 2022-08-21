@@ -2,15 +2,18 @@ import logging
 import math
 from multiprocessing import Process, Manager
 import numpy as np
-from PIL import Image
+# import psutil
 import time
 
-from ditherer.dither_kernel import DitherKernel
+from ditherer.ditherer import Ditherer, DitherKernel
 from tester.image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
 from tester.test_utils import complete_random_dither, arr_to_kernel
 
 GEN_SIZE = 48
 ROW_MIN = 2
+
+BLUR_LEVEL = 18.0 #FIXME: This should be calculated based on pixel size and maybe image size
+
 
 # run one and stop
 TEST_RUN = False
@@ -23,8 +26,9 @@ GEN_START = 1
 
 class Exhaustive(object):
 
-    def __init__(self, im:ImageCompare, now:str, rows:int, cols:int, shape:str, start_x:int=1, start_y:int=0, denom:int=16, serpentine:bool=False, down_ker:DitherKernel=None, row_min:int=ROW_MIN):
-        self.im = im
+    def __init__(self, infile:str, greyfile:str, now:str, rows:int, cols:int, shape:str, start_x:int=1, start_y:int=0, denom:int=16, serpentine:bool=False, down_ker:DitherKernel=None, row_min:int=ROW_MIN):
+        self.infile = infile
+        self.greyfile = greyfile
         self.now = now
         self.denom = denom
         self.rows = rows
@@ -95,7 +99,7 @@ class Exhaustive(object):
 
  
     @staticmethod
-    def _get_score(member, return_dict, num, im:ImageCompare, denom, now, iteration, shape, rows, cols, start_x, serpentine, down_ker:DitherKernel=None):
+    def _get_score(member, return_dict, num, infile, greyfile, denom, now, iteration, shape, rows, cols, start_x, serpentine, down_ker:DitherKernel=None):
         
         #FIXME: Why do we need to do all this again? Without this, nothing is logged
         logFormatter = logging.Formatter("%(asctime)s  %(message)s")
@@ -108,7 +112,19 @@ class Exhaustive(object):
         rootLogger.addHandler(fileHandler)
 
         logging.info(f"Getting score for #{num}")
+        np_load_old = np.load
+        # modify the default parameters of np.load
+        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+        # call load_data with allow_pickle implicitly set to true
+        greyset = np.load(greyfile)
+        # restore np.load for future normal usage
+        np.load = np_load_old
+
+        im = ImageCompare(Ditherer(greyset), infile, greyfile)
+        im.sigma = BLUR_LEVEL
+        del greyset
         return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows, cols, start_x), "exhaustive", serpentine, now, iteration, shape, down_ker=down_ker, skip_scoring=SKIP_SCORING)
+        del im
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self):
@@ -118,34 +134,55 @@ class Exhaustive(object):
         processes = []
 
         if (TEST_RUN):
-            Exhaustive._get_score(self.kernel_list[0], return_dict, 0, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)
+            Exhaustive._get_score(self.kernel_list[0], return_dict, 0, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)
             return
 
-        starting_kernel = (GEN_START - 1) * GEN_SIZE
+        try:
 
-        for j in range(starting_kernel, len(self.kernel_list), GEN_SIZE):
+            starting_kernel = (GEN_START - 1) * GEN_SIZE
 
-            arrsize = range(j, min(j + GEN_SIZE, len(self.kernel_list) - j))
-            gencount += 1
-            logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE) + 1}")
-            for i in arrsize:
-                processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.im, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
-            for i in arrsize:
-                try:
-                    processes[i - starting_kernel].start()
-                except Exception as e:
-                    logging.error(f"ERROR STARTING PROCESS: {e.__class__.__name__}, {e}")
-                    # logging.error("PAUSING")
-                    # time.sleep(24)
-                    # logging.error("TRYING AGAIN")
-                    # processes[i - starting_kernel].start()
-                    raise e
-            for i in arrsize:
-                try:
-                    processes[i - starting_kernel].join()
-                except Exception as e:
-                    logging.error(f"ERROR JOINING PROCESS: {e.__class__.__name__}, {e}")
-                    raise e # or catch here
- 
-        print(return_dict)
-        logging.info(return_dict)
+            for j in range(starting_kernel, len(self.kernel_list), GEN_SIZE):
+                fails = 0
+
+                # for proc in psutil.process_iter():
+                #     logging.warn(f"Open Files: {proc.open_files()}")
+
+                arrsize = range(j, min(j + GEN_SIZE, len(self.kernel_list) - j))
+                gencount += 1
+
+                if gencount % 100 == 0:
+                    logging.info("A LONGER INTERMISSION...")
+                    time.sleep(5 * 60)
+                    logging.info("RESUMING")
+                elif gencount % 20 == 0:
+                    logging.info("A SHORT INTERMISSION....")
+                    time.sleep(45)
+                    logging.info("RESUMING")
+
+                logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE) + 1}")
+                for i in arrsize:
+                    processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
+                for i in arrsize:
+                    try:
+                        processes[i - starting_kernel].start()
+                    except Exception as e:
+                        logging.error(f"ERROR STARTING PROCESS: {e.__class__.__name__}, {e}")
+                        logging.error("PAUSING")
+                        fails += 1
+                        if fails > 3:
+                            break
+                        time.sleep(24)
+                        logging.error("TRYING AGAIN")
+                        try:
+                            processes[i - starting_kernel].start()
+                        except Exception:
+                            logging.error("FAILED AGAIN, SKIPPING...")
+                        # raise e
+                for i in arrsize:
+                    try:
+                        processes[i - starting_kernel].join()
+                    except Exception as e:
+                        logging.error(f"ERROR JOINING PROCESS: {e.__class__.__name__}, {e}")
+                        raise e # or catch here
+        finally:
+            logging.info(return_dict)

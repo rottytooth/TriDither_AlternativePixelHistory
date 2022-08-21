@@ -1,4 +1,5 @@
-ulimit -Sn 256
+ulimit -Sn 20000 # file handle issues
+ulimit -n 20000
 
 rm exe/*.*
 

@@ -71,25 +71,25 @@ class Shapizer(object):
             return 0
         return round(total / pixelcount)
 
-    def get_greyscaledata(self, npyloc:str):
-        "LOAD GREYSCALE DATA FROM 'greyset' AND DITHER"
+    # def get_greyscaledata(self, npyloc:str):
+    #     "LOAD GREYSCALE DATA FROM 'greyset' AND DITHER"
 
-        np_load_old = np.load
+    #     np_load_old = np.load
 
-        # modify the default parameters of np.load
-        np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+    #     # modify the default parameters of np.load
+    #     np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
 
-        # call load_data with allow_pickle implicitly set to true
-        greyset = np.load(npyloc)
+    #     # call load_data with allow_pickle implicitly set to true
+    #     greyset = np.load(npyloc)
 
-        # restore np.load for future normal usage
-        np.load = np_load_old
+    #     # restore np.load for future normal usage
+    #     np.load = np_load_old
 
-        # Inspect greyscale data
-        # for i in range(0,len(greyset)):
-        #     print(greyset[i])
+    #     # Inspect greyscale data
+    #     # for i in range(0,len(greyset)):
+    #     #     print(greyset[i])
 
-        return greyset
+    #     return greyset
 
     def save(self, outlocation, im, greyscale_list, greyset, greylocation):
         if outlocation is None:

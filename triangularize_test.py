@@ -31,20 +31,21 @@ np_load_old = np.load
 # modify the default parameters of np.load
 np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
 # call load_data with allow_pickle implicitly set to true
-greyset = np.load(GREYSET)
+greyset =  np.load(GREYSET)
 # restore np.load for future normal usage
 np.load = np_load_old
 
-image = Image.open(ORIGINAL_IMAGE).convert('LA').convert("RGBA")
-width, height = image.size
+with Image.open(ORIGINAL_IMAGE).convert('LA').convert("RGBA") as image:
+    width, height = image.size
 
-ditherer = Ditherer(greyset)
+    ditherer = Ditherer(greyset)
+    del greyset
 
-IS_EQ_TRIANGLE = False
+    IS_EQ_TRIANGLE = False
 
-for i in range(100,101): #range(1, 101, 3):
-    
-    dithered_tri = ditherer.dither(kernel=DITHER, serpentine=False, percent=i, rowoffset=IS_EQ_TRIANGLE)
+    for i in range(100,101): #range(1, 101, 3):
+        
+        dithered_tri = ditherer.dither(kernel=DITHER, serpentine=False, percent=i, rowoffset=IS_EQ_TRIANGLE)
 
-    tri.pixelate(image, width, height, OUTPATH.replace("%PERCENT%",str(i)), dithered_tri) #, rectangular=True)
+        tri.pixelate(image, width, height, OUTPATH.replace("%PERCENT%",str(i)), dithered_tri) #, rectangular=True)
 
