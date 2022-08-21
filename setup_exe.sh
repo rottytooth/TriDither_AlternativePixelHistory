@@ -1,7 +1,7 @@
 ulimit -Sn 20000 # file handle issues
 ulimit -n 20000
 
-rm exe/*.*
+rm ../exe/*.*
 
 cd ..
 python -m zipfile -c exe/tridither.zip src/*.py
@@ -18,4 +18,5 @@ chmod 755 .trid_env/bin/activate
 .trid_env/bin/activate
 python3 -m pip install -r requirements.txt
 
-echo "python3 tridither.zip exhaustive -i grey_49_1600_hex.png -g grey_49_1600_hex.npy -s hexagon" > run.sh
+echo "python3 tridither.zip exhaustive -i hexagon_gradient1600.png -g hexagon_gradient1600.npy -s hexagon" > ./run.sh
+chmod 755 run.sh

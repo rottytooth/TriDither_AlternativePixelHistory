@@ -14,7 +14,6 @@ ROW_MIN = 2
 
 BLUR_LEVEL = 18.0 #FIXME: This should be calculated based on pixel size and maybe image size
 
-
 # run one and stop
 TEST_RUN = False
 
@@ -100,7 +99,7 @@ class Exhaustive(object):
  
     @staticmethod
     def _get_score(member, return_dict, num, infile, greyfile, denom, now, iteration, shape, rows, cols, start_x, serpentine, down_ker:DitherKernel=None):
-        
+
         #FIXME: Why do we need to do all this again? Without this, nothing is logged
         logFormatter = logging.Formatter("%(asctime)s  %(message)s")
         rootLogger = logging.getLogger()
@@ -110,7 +109,7 @@ class Exhaustive(object):
         consoleHandler.setFormatter(logFormatter)
         fileHandler.setFormatter(logFormatter)
         rootLogger.addHandler(fileHandler)
-
+        
         logging.info(f"Getting score for #{num}")
         np_load_old = np.load
         # modify the default parameters of np.load
@@ -124,14 +123,12 @@ class Exhaustive(object):
         im.sigma = BLUR_LEVEL
         del greyset
         return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows, cols, start_x), "exhaustive", serpentine, now, iteration, shape, down_ker=down_ker, skip_scoring=SKIP_SCORING)
-        del im
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self):
         manager = Manager()
         return_dict = manager.dict()
         gencount = GEN_START - 1
-        processes = []
 
         if (TEST_RUN):
             Exhaustive._get_score(self.kernel_list[0], return_dict, 0, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)
@@ -146,41 +143,34 @@ class Exhaustive(object):
 
                 # for proc in psutil.process_iter():
                 #     logging.warn(f"Open Files: {proc.open_files()}")
+                processes = []
 
-                arrsize = range(j, min(j + GEN_SIZE, len(self.kernel_list) - j))
+
+                arrsize = range(0, min(GEN_SIZE, len(self.kernel_list) - j))
                 gencount += 1
-
-                if gencount % 100 == 0:
-                    logging.info("A LONGER INTERMISSION...")
-                    time.sleep(5 * 60)
-                    logging.info("RESUMING")
-                elif gencount % 20 == 0:
-                    logging.info("A SHORT INTERMISSION....")
-                    time.sleep(45)
-                    logging.info("RESUMING")
 
                 logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE) + 1}")
                 for i in arrsize:
                     processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
                 for i in arrsize:
                     try:
-                        processes[i - starting_kernel].start()
+                        processes[i].start()
                     except Exception as e:
                         logging.error(f"ERROR STARTING PROCESS: {e.__class__.__name__}, {e}")
                         logging.error("PAUSING")
                         fails += 1
                         if fails > 3:
                             break
-                        time.sleep(24)
+                        time.sleep(3)
                         logging.error("TRYING AGAIN")
                         try:
-                            processes[i - starting_kernel].start()
+                            processes[i].start()
                         except Exception:
                             logging.error("FAILED AGAIN, SKIPPING...")
                         # raise e
                 for i in arrsize:
                     try:
-                        processes[i - starting_kernel].join()
+                        processes[i].join()
                     except Exception as e:
                         logging.error(f"ERROR JOINING PROCESS: {e.__class__.__name__}, {e}")
                         raise e # or catch here

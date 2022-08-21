@@ -1,6 +1,7 @@
 import logging
 from shapizer import shapizer
 from .hexagonizer import Hexagonizer
+from .hexagonizer_rev import HexagonizerRev
 from .triangularizer import Triangularizer
 from .righttriangularizer import Righttriangularizer
 
@@ -13,6 +14,8 @@ class ShapizerFactory():
             shapizer = Righttriangularizer(args)
         if shape == "hexagon":
             shapizer = Hexagonizer(args)
+        if shape == "hexagon_rev":
+            shapizer = HexagonizerRev(args)
 
         try:
             return shapizer        

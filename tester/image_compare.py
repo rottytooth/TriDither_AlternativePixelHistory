@@ -151,6 +151,7 @@ class ImageCompare(object):
 
         # make directory
         idd = str(uuid.uuid4())
+
         if not os.path.exists(f"{OUT_DIR}/{dirname}"):
             try:
                 os.makedirs(f"{OUT_DIR}/{dirname}")
@@ -193,7 +194,11 @@ class ImageCompare(object):
     #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
             # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)
 
-            dithered_img = shapizer.pixelate(original_image.copy(), width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
+            image_to_compare = original_image.copy()
+
+            dithered_img = shapizer.pixelate(image_to_compare, width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
+            
+            del image_to_compare
 
             if not skip_scoring:
                 filename = f"{idd}/greyset_fs"

@@ -44,6 +44,7 @@ def main():
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
+    
 
     logging.info("Starting process: %s" % args.process)
 
@@ -168,32 +169,21 @@ def make_dir_for_entry(path:str, dirname:str, iteration:int, idd:str)->None:
     os.mkdir(path)
     return path
 
-def file_logging(run_indicator):
-    logFormatter = logging.Formatter("%(asctime)s  %(message)s") # we already have this
+def file_logging(run_indicator:str, prefix:str="dithering"):
+    logFormatter = logging.Formatter("%(asctime)s  %(message)s") 
     rootLogger = logging.getLogger()
-    fileHandler = logging.FileHandler(f"../logs/dithering_{run_indicator}.log")
+    fileHandler = logging.FileHandler(f"../logs/{prefix}_{run_indicator}.log")
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     rootLogger.setLevel(logging.INFO)
 
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
-
 def exhaustive(infile, greyfile, shape, rootLogger):
     now = datetime.datetime.now()
     nowstr = f"{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}_{now.microsecond}"
-
-    fileHandler = logging.FileHandler(f'../logs/exh_{nowstr}.log')
-    rootLogger.setLevel(logging.INFO)
-    rootLogger.addHandler(fileHandler)
+    file_logging(nowstr, "exh")
 
     shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)
     shapizer.greylocation = greyfile
-
-    # im = ImageCompare(Ditherer(greyset), infile, greyfile)
-    # im.sigma = BLUR_LEVEL
-    # del greyset
 
     start_ker = DitherKernel()
     start_ker.start_x = 1
@@ -207,13 +197,14 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     # down_ker.start_x = 1
     # down_ker.start_y = 0
     # down_ker.denom = 16
-    # down_ker.nums = [[0, 0, 3], [0, 2, 2], [0, 8, 1]]
+    # down_ker.nums = [[0, 0, 7], [0, 2, 3], [0, 3, 1]]
 
     shape = 'hexagon'
     row_min = 2
 
     dt = Exhaustive(infile, greyfile, nowstr, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
     dt.run()
+    del greyfile
 
 def ml(infile, greyfile, outpath):
     now = datetime.datetime.now()
