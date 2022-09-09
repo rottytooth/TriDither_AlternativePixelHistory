@@ -71,7 +71,7 @@ class DitherTester(object):
         # return score_tot
         return scores
 
-    def __get_random_sq(self, state:DitherKernel)->[int,int]:
+    def __get_random_sq(self, state:DitherKernel):
         randy = random.randint(0, len(state.nums) - 1)
         if randy == state.start_y:
             randx = random.randint(state.start_x + 1, len(state.nums[randy]) - 1)
@@ -79,7 +79,7 @@ class DitherTester(object):
             randx = random.randint(0, len(state.nums[randy]) - 1)
         return randx, randy
 
-    def get_random_square(self, state:DitherKernel, greaterThanZero:bool=False)->[int,int]:
+    def get_random_square(self, state:DitherKernel, greaterThanZero:bool=False):
         """Determine a square to add to or subtract from"""
         randx, randy = self.__get_random_sq(state)
 

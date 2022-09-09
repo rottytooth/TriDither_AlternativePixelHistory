@@ -8,7 +8,7 @@ from .shapizer import Shapizer
 
 
 OFFSET = math.sqrt(3)/2 # relationship of triangle width to height
-PIXEL_HEIGHT = 20 # size of hexagonal pixels to draw in rectangular pixels
+PIXEL_HEIGHT = 12 # size of hexagonal pixels to draw in rectangular pixels
 
 SIDE_TO_HEIGHT = 1.732051
 
@@ -43,7 +43,7 @@ class HexagonizerRev(Shapizer):
         for row in range(math.ceil((height * 2) / self.pixel_height) + 2):
             greyset.append([]) # new row
             logging.debug(f"beginning row {row}")
-            for col in range(math.ceil(width / (sidelen * 3)) + 2): 
+            for col in range(math.ceil(width / (sidelen * 2 )) + 2): 
 
                 starting_x = col * sidelen * 2
                 starting_y = row * self.pixel_height * 1.5

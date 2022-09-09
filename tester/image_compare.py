@@ -119,14 +119,14 @@ class ImageCompare(object):
         rnd = self.random_img(image)
         self.run_test(rnd, image, filename, "Random", False)
 
-    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False):
+    def imgtest(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False, idd=None):
         if (shape == 'square'):
-            return self.imgtest_square(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring)
+            return self.imgtest_square(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring, idd)
         else:
-            return self.imgtest_other(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring)
+            return self.imgtest_other(kernel, testname, serpentine, now, iteration, shape, down_ker, skip_scoring, idd)
 
 
-    def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None, skip_scoring=False):
+    def imgtest_square(self, kernel:DitherKernel, testname:str, serpentine:bool, now:str=None, skip_scoring=False, idd=None):
         "Dithers and then scores result; writes out image dithered, returns score"
         image = self.getImage(OUT_DIR + "/" + self.original_img)
         self.d = Ditherer(image)
@@ -137,20 +137,23 @@ class ImageCompare(object):
         else:
             score = 0
 
-        idd = str(uuid.uuid4())
+        if idd == None:
+            idd = str(uuid.uuid4())
+
         filename = f"{idd}/greyset_fs"
 
         cv2.imwrite(f"{OUT_DIR}/{testname}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)
         return score, ""
 
 
-    def imgtest_other(self, kernel:DitherKernel, testname:str, serpentine:bool, dirname:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False):
+    def imgtest_other(self, kernel:DitherKernel, testname:str, serpentine:bool, dirname:str, iteration:str, shape:str, down_ker:DitherKernel=None, skip_scoring=False, idd=None):
         """Standard test for non-square dither. Works off a .npy file of greyscale info.
         Uses original image to determine size, and the .npy file for the pixelated version
         of the image. Logs location of images it writes and returns score"""
 
         # make directory
-        idd = str(uuid.uuid4())
+        if idd == None:
+            idd = str(uuid.uuid4())
 
         if not os.path.exists(f"{OUT_DIR}/{dirname}"):
             try:
@@ -163,7 +166,9 @@ class ImageCompare(object):
             except:
                 pass # sometimes another thread will have created the folder after testing
         path = f"{OUT_DIR}/{dirname}/{iteration}/{idd}"
-        os.mkdir(path)
+        
+        if not os.path.exists(path):
+            os.mkdir(path)
 
         self.sigma = BLUR_LEVEL # higher blur for large-pixel work
 
@@ -196,7 +201,15 @@ class ImageCompare(object):
 
             image_to_compare = original_image.copy()
 
-            dithered_img = shapizer.pixelate(image_to_compare, width, height, f"{path}/{shape}.png", dithered_tri, save_files=True, rectangular=True)
+            filecount = 1
+            filepath = ""
+            while True:
+                filepath = f"{path}/{shape}{filecount}.png"
+                if not os.path.exists(filepath):
+                    break
+                filecount += 1
+
+            dithered_img = shapizer.pixelate(image_to_compare, width, height,filepath, dithered_tri, save_files=True, rectangular=True)
             
             del image_to_compare
 
@@ -214,7 +227,7 @@ class ImageCompare(object):
                 if blur_img_path and not os.path.exists(f"{path}/blur/"):
                     os.makedirs(f"{path}/blur/")
 
-                score = self.run_test(dithered_img, np.array(original_image), f"{path}/{shape}.png", testname, serpentine, idd, blur_img_path=blur_img_path)
+                score = self.run_test(dithered_img, np.array(original_image), filepath, testname, serpentine, idd, blur_img_path=blur_img_path)
 
         #        logging.info("export to file")
                 cv2.imwrite(f"{OUT_DIR}/{idd}/{filename}_{'serp' if serpentine else 'ltor'}.PNG", dithered_img)

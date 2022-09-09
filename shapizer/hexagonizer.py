@@ -47,7 +47,7 @@ class Hexagonizer(Shapizer):
             for col in range(math.ceil(width / (sidelen * 3)) + 2): 
 
                 starting_x = col * sidelen * 3
-                starting_y = row * self.pixel_height / 2
+                starting_y = row * self.pixel_height / 2 # - self.pixel_height / 2
 
                 if row % 2 == 1:
                     starting_x += -1.5 * sidelen

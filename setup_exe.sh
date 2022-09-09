@@ -1,5 +1,5 @@
-ulimit -Sn 20000 # file handle issues
-ulimit -n 20000
+#ulimit -Sn 20000 # file handle issues
+#ulimit -n 20000
 
 rm ../exe/*.*
 
@@ -18,5 +18,6 @@ chmod 755 .trid_env/bin/activate
 .trid_env/bin/activate
 python3 -m pip install -r requirements.txt
 
-echo "python3 tridither.zip exhaustive -i hexagon_gradient1600.png -g hexagon_gradient1600.npy -s hexagon" > ./run.sh
+#echo "python3 tridither.zip exhaustive -i grey_31_1600_hexrev.png -g grey_31_1600_hexrev.npy -s hexagon_rev" > ./run.sh
+echo "python3 tridither.zip ml -i david_hex.png,grey_31_1600_hex.png,david_hex_tiny.png -g david_hex.npy,grey_31_1600_hex.npy,david_hex_tiny.npy -s hexagon" > ./run.sh
 chmod 755 run.sh

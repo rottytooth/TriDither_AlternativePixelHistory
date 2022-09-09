@@ -7,7 +7,6 @@ import time
 
 from ditherer.ditherer import Ditherer, DitherKernel
 from tester.image_compare import ImageCompare, ImageScore #, full_test_ditheralgo
-from tester.test_utils import complete_random_dither, arr_to_kernel
 
 GEN_SIZE = 48
 ROW_MIN = 2
@@ -122,7 +121,7 @@ class Exhaustive(object):
         im = ImageCompare(Ditherer(greyset), infile, greyfile)
         im.sigma = BLUR_LEVEL
         del greyset
-        return_dict[num] = im.imgtest(arr_to_kernel(member, denom, rows, cols, start_x), "exhaustive", serpentine, now, iteration, shape, down_ker=down_ker, skip_scoring=SKIP_SCORING)
+        return_dict[num] = im.imgtest(DitherKernel.arr_to_kernel(member, denom, rows, cols, start_x), "exhaustive", serpentine, now, iteration, shape, down_ker=down_ker, skip_scoring=SKIP_SCORING)
         logging.info(f"Completed work on #{num}")
 
     def _score_population(self):
@@ -149,7 +148,7 @@ class Exhaustive(object):
                 arrsize = range(0, min(GEN_SIZE, len(self.kernel_list) - j))
                 gencount += 1
 
-                logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE) + 1}")
+                logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE)}")
                 for i in arrsize:
                     processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
                 for i in arrsize:

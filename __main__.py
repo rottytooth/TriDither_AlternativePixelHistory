@@ -34,6 +34,8 @@ parser.add_argument('-d', '--downkernel', type=str, default='square', help='over
 #not really used????
 #BLUR_LEVEL = 432.0 #FIXME: This should be calculated based on pixel size and maybe image size
 
+NOW = datetime.datetime.now()
+NOW_STR = f"{NOW.year}_{NOW.month}_{NOW.day}_{NOW.hour}_{NOW.minute}_{NOW.second}_{NOW.microsecond}"
 
 def main():
     args = parser.parse_args()
@@ -66,7 +68,18 @@ def main():
         #FIXME: may want to pass outpath for this
     if args.process == ['ml']:
         # run ml model to find ideal kernel for pixel shape
-        ml("pixelated_img/" + args.infile, greypath + args.greylocation, "out/" + args.outpath)
+
+        infilelist = []
+        greyfilelist = []
+
+        for infile in args.infile.split(','):
+            infilelist.append(pixelpath + infile)
+        
+        for greyfile in args.greylocation.split(','):
+            greyfilelist.append(greypath + greyfile)
+        
+
+        ml(infilelist, greyfilelist, outpath, args.shape)
     if args.process == ['exhaustive']:
         exhaustive(pixelpath + args.infile, greypath + args.greylocation,"hexagon", rootLogger)
 
@@ -178,9 +191,7 @@ def file_logging(run_indicator:str, prefix:str="dithering"):
     rootLogger.setLevel(logging.INFO)
 
 def exhaustive(infile, greyfile, shape, rootLogger):
-    now = datetime.datetime.now()
-    nowstr = f"{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}_{now.microsecond}"
-    file_logging(nowstr, "exh")
+    file_logging(NOW_STR, "exh")
 
     shapizer = shapizer_factory.ShapizerFactory.GetShapizer(shape)
     shapizer.greylocation = greyfile
@@ -189,7 +200,7 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     start_ker.start_x = 1
     start_ker.start_y = 0
     start_ker.denom = 16
-    rows = 3
+    rows = 2
     cols = 3
 
     down_ker = None
@@ -199,28 +210,25 @@ def exhaustive(infile, greyfile, shape, rootLogger):
     # down_ker.denom = 16
     # down_ker.nums = [[0, 0, 7], [0, 2, 3], [0, 3, 1]]
 
-    shape = 'hexagon'
+    shape = 'hexagon_rev'
     row_min = 2
 
-    dt = Exhaustive(infile, greyfile, nowstr, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
+    dt = Exhaustive(infile, greyfile, NOW_STR, rows, cols, shape, start_ker.start_x, start_ker.start_y, start_ker.denom, serpentine=False, row_min=row_min, down_ker=down_ker)
     dt.run()
     del greyfile
 
-def ml(infile, greyfile, outpath):
-    now = datetime.datetime.now()
-    nowstr = f"{now.year}_{now.month}_{now.day}_{now.second}_{now.microsecond}"
+def ml(infilelist, greyfilelist, outpath, shape):
+    file_logging(NOW_STR, "ml")
 
-    file_logging(nowstr)
-
-    iteration = 0
+    iteration = 1
     idd = str(uuid.uuid4())
-    newoutpath = make_dir_for_entry(outpath, nowstr, iteration, idd)
+    newoutpath = make_dir_for_entry(outpath, NOW_STR, iteration, idd)
     # dither_and_score(infile, newoutpath, greyfile)
 
-    im = ImageCompare()
-    im.greyscale = greyfile
-    im.original_img = infile
-    dt = GeneticAlgorithm(im, nowstr)
+    if len(greyfilelist) != len(infilelist):
+        raise Exception("Infile list and greyfile list need to be the same size")
+
+    dt = GeneticAlgorithm(infilelist, greyfilelist, NOW_STR, shape, newoutpath)
     dt.run()
 
 
