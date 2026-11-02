@@ -72,7 +72,7 @@ class ImageCompare(object):
             if not cv2.imwrite(f"{name_prefix}_compare_blur.png", blurred_compare):
                 logging.error(f"Failed to save compare blur")
 
-        score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare))
+        score = ImageScore(self.sigma, ssim(blurred_original, blurred_compare, data_range=255))
 
         # NOTE: the following increases intensity and then re-blurs to test
         # The idea is to test well for Atkinson and other "mid-range" dithers
@@ -194,7 +194,7 @@ class ImageCompare(object):
             self.d = Ditherer(greyset)
             del greyset
 
-            dithered_tri = self.d.dither(kernel, down_ker, serpentine)
+            dithered_tri = self.d.dither(kernel, down_ker, serpentine, rowoffset=(shape == "triangle"))
 
     #        logging.info(f"Calling pixelate() WITH FILE SAVING for {idd}")
             # dithered_img = tri.pixelate(image, width, height, f"{path}/tri.png", dithered_tri, save_files=True)

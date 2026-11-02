@@ -98,7 +98,9 @@ class Shapizer(object):
         logging.info(f"Saved to path {outlocation}")
 
         if greyscale_list is None:
-            # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation 
+            # if we've generated a greyset, it means this is the pixelated version for a non-pixelated original, so we will save it to greylocation
+            if len({len(row) for row in greyset}) > 1: # ragged rows (e.g. triangle) must be saved as an object array
+                greyset = np.array(greyset, dtype=object)
             np.save(greylocation, greyset)
             logging.info(f"Saved greyset to {greylocation}")
 

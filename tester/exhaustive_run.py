@@ -150,7 +150,7 @@ class Exhaustive(object):
 
                 logging.info(f"Beginning generation {gencount} / {math.ceil(len(self.kernel_list) / GEN_SIZE)}")
                 for i in arrsize:
-                    processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[i], return_dict, i, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
+                    processes.append(Process(target=Exhaustive._get_score, args=(self.kernel_list[j + i], return_dict, j + i, self.infile, self.greyfile, self.denom, self.now, gencount, self.shape, self.rows, self.cols, self.start_x, self.serpentine, self.down_ker)))
                 for i in arrsize:
                     try:
                         processes[i].start()

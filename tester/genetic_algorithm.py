@@ -94,7 +94,7 @@ class GeneticAlgorithm(object):
 
         # remove doubles
         for i in range(len(scores)-1, 0, -1):
-            if scores[i] != next((x for x in scores if np.array_equal(x.kernel.nums,scores[i].kernel.nums)), None):
+            if scores[i] != next((x for x in scores if x.kernel.nums == scores[i].kernel.nums), None):
                 scores.remove(scores[i])
         # worst of population
         logging.info(f"WORST: {scores[len(scores)-1]}")
@@ -164,7 +164,7 @@ class GeneticAlgorithm(object):
             retkernel.denom = sum(sum(retkernel.nums,[]))
         except Exception as e:
             logging.error(e)
-            logging.error(type(flat))
+            logging.error(f"bad kernel array: {retkernel.nums}")
             logging.error("SKIPPING REDUCE")
 
         try:
@@ -184,7 +184,7 @@ class GeneticAlgorithm(object):
                     break
         except Exception as e:
             logging.error(e)
-            logging.error(f"bad kernel array: {testarray}")
+            logging.error(f"bad kernel array: {retkernel.nums}")
         return retkernel
 
     def _mutate(self, member:DitherKernel)->DitherKernel:

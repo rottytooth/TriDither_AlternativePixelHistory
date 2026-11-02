@@ -40,17 +40,16 @@ class HexagonizerRev(Shapizer):
 
         draw = ImageDraw.Draw(im)
 
-        for row in range(math.ceil((height * 2) / self.pixel_height) + 2):
+        for row in range(math.ceil(height / (self.pixel_height * 1.5)) + 2):
             greyset.append([]) # new row
             logging.debug(f"beginning row {row}")
             for col in range(math.ceil(width / (sidelen * 2 )) + 2): 
 
                 starting_x = col * sidelen * 2
-                starting_y = row * self.pixel_height * 1.5
+                starting_y = (row - 1) * self.pixel_height * 1.5 # start one row up to cover the top edge
 
                 if row % 2 == 1:
                     starting_x += -1.0 * sidelen
-                    starting_y -= 3.5 * sidelen
 
                 hexagon = [
                     (starting_x, starting_y),

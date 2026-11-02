@@ -2,6 +2,8 @@
 
 A collection of dithering programs
 
+Created by [Daniel Temkin](https://danieltemkin.com)
+
 # Ditherer: takes an image or numpy array of greyscale values [each an np.uint8 from 0 to 255] and dithers to black and white
 - takes argument for percentage dithering
 - argument for serpentine dither
@@ -31,3 +33,7 @@ Called directly, scores an image using Structural Similarity Index
 - to do: add contrast controls so Atkinson dither, and others that are good for middle range, will test better
 
 
+Requires Python 3.13
+
+Has actual tests now. Run from this folder with `python -m unittest discover -s tests -t .`
+Test files are written to `../out_test` (one folder per test), which is cleared at the start of each run. Set `TRIDITHER_TEST_OUT` to write them elsewhere.

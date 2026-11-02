@@ -18,6 +18,9 @@ class Ditherer(object):
             raise ValueError("Ditherer image not set")
 
         retarray = self.imgarray.copy()
+        # work in float so diffused error isn't truncated
+        if retarray.dtype != object:
+            retarray = retarray.astype(np.float64)
 
         if percent < 100:
             self.change_contrast(retarray, percent)
@@ -37,6 +40,8 @@ class Ditherer(object):
                     else:
                         self.calculate_cell(kernel, x, y, retarray, False, percent, rowoffset)
 
+        if retarray.dtype != object:
+            retarray = retarray.astype(self.imgarray.dtype)
 
         return retarray
 
